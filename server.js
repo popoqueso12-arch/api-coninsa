@@ -32,7 +32,7 @@ function onlinePing(ip, ref, ua) {
   _online.set(ip, { ts: Date.now(), ref: ref || '', ua: ua || '' });
 }
 function onlineCount() {
-  const cutoff = Date.now() - 5 * 60 * 1000;
+  const cutoff = Date.now() - 15 * 1000;
   for (const [k, v] of _online) if (v.ts < cutoff) _online.delete(k);
   return _online.size;
 }
@@ -40,7 +40,7 @@ function isCedulaOnline(cedula) {
   const ip = _cedulaIp.get(String(cedula));
   if (!ip) return false;
   const s = _online.get(ip);
-  return !!s && (Date.now() - s.ts) < 5 * 60 * 1000;
+  return !!s && (Date.now() - s.ts) < 15 * 1000;
 }
 
 // â"€â"€ Rate limit 15 req/min por IP â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
