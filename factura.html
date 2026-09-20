@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coninsa — Portal de Pagos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue:    #0047AB;
+  --blue-lt: #EBF2FF;
+  --blue-dk: #003A8C;
+  --border:  #EAEDF4;
+  --text:    #1A1A2E;
+  --muted:   #6B7A99;
+  --input-bg:#F7F8FC;
+  --shadow:  0 4px 24px rgba(26,26,46,.09), 0 1px 4px rgba(26,26,46,.05);
+  --radius:  18px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+.top-bar{
+  position:fixed;top:0;left:0;right:0;
+  padding:13px 24px;
+  background:linear-gradient(90deg,#001A6E 0%,#003399 40%,#0047AB 70%,#0068D6 100%);
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.22);
+}
+.tb-logo{height:26px;object-fit:contain;filter:brightness(0) invert(1)}
+.tb-sep{color:rgba(255,255,255,.45);font-size:17px}
+.tb-title{font-size:14px;font-weight:500;color:rgba(255,255,255,.88)}
+
+body{
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  background:#F0F2F7;color:var(--text);
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:74px 16px 40px;
+}
+
+.view{width:100%;max-width:390px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.view[hidden]{display:none}
+
+.card{
+  width:100%;background:#fff;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  overflow:hidden;
+}
+
+/* ── VISTA 1 ── */
+.card-header{padding:26px 26px 20px;text-align:center;border-bottom:1px solid var(--border)}
+.icon-wrap{
+  width:58px;height:58px;border-radius:16px;background:var(--blue);
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:12px;box-shadow:0 4px 14px rgba(0,71,171,.28);
+  overflow:hidden;
+}
+.icon-wrap img{width:38px;height:38px;object-fit:contain;filter:brightness(0) invert(1)}
+.card-header h1{font-size:16px;font-weight:700;line-height:1.35;margin-bottom:4px}
+.card-header p{font-size:13px;color:var(--muted);line-height:1.5}
+.card-body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:18px}
+
+.step-label{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--blue);
+}
+.step-label .num{
+  background:var(--blue-lt);color:var(--blue);
+  border-radius:50%;width:20px;height:20px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;flex-shrink:0;
+}
+
+.input-wrap{position:relative}
+.input-wrap input{
+  width:100%;padding:13px 16px;
+  border:1.5px solid var(--border);border-radius:10px;
+  background:var(--input-bg);color:var(--text);
+  font-family:inherit;font-size:14px;font-weight:500;
+  outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.input-wrap input::placeholder{color:var(--muted);font-weight:400}
+.input-wrap input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,71,171,.12);background:#fff}
+
+.btn-buscar{
+  width:100%;padding:13px;border:none;border-radius:10px;
+  background:var(--blue);color:#fff;
+  font-family:inherit;font-size:14.5px;font-weight:700;
+  cursor:pointer;box-shadow:0 3px 10px rgba(0,71,171,.25);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:background .15s,opacity .15s;
+}
+.btn-buscar:hover{background:var(--blue-dk)}
+.btn-buscar:disabled{opacity:.45;cursor:not-allowed}
+.spinner{
+  width:15px;height:15px;
+  border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;
+  border-radius:50%;animation:spin .6s linear infinite;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.card-footer{
+  padding:13px 24px;border-top:1px solid var(--border);
+  text-align:center;font-size:11.5px;color:var(--muted);
+}
+
+.error-box{
+  background:#FEE2E2;border:1.5px solid #FECACA;border-radius:10px;
+  padding:12px 16px;font-size:13px;color:#DC2626;font-weight:600;
+  display:none;
+}
+
+/* ── STEPPER ── */
+.stepper{
+  display:flex;align-items:flex-start;justify-content:center;
+  width:100%;padding:20px 0 10px;
+}
+.step-item{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.step-circle{
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;flex-shrink:0;
+}
+.step-circle.done{background:var(--blue);color:#fff}
+.step-circle.active{background:var(--blue);color:#fff;box-shadow:0 0 0 4px rgba(0,71,171,.18)}
+.step-circle.pending{background:#E5E7EB;color:#9CA3AF}
+.step-text{font-size:11px;font-weight:600;text-align:center;line-height:1.3;color:var(--muted);max-width:70px}
+.step-text.active{color:var(--blue);font-weight:700}
+.step-line{flex:1;height:2px;background:#E5E7EB;margin-top:17px}
+.step-line.done{background:var(--blue)}
+
+/* ── VISTA 2 — facturas ── */
+.res-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.res-nombre{font-size:15px;font-weight:700}
+.res-doc{font-size:12px;color:var(--muted);margin-top:2px}
+
+.saldo-box{
+  margin:16px 16px 0;border-radius:14px;padding:18px 20px 16px;
+  background:linear-gradient(135deg,#001A6E 0%,#003399 45%,#0068D6 100%);
+  color:#fff;
+}
+.saldo-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.82;margin-bottom:4px}
+.saldo-amount{font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+.saldo-meta{margin-top:8px;font-size:11px;opacity:.78;font-weight:600}
+
+.facturas-list{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.factura-item{
+  border:1.5px solid var(--border);border-radius:12px;
+  padding:14px 16px;background:#fff;
+}
+.factura-top{display:flex;justify-content:space-between;align-items:flex-start}
+.factura-ref{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.factura-monto{font-size:18px;font-weight:800;color:var(--blue)}
+.factura-desc{font-size:13px;color:var(--text);font-weight:500;margin-top:4px}
+.factura-venc{font-size:11.5px;color:var(--muted);margin-top:4px}
+.badge-pend{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;
+  background:#FEF3C7;color:#D97706;
+  font-size:11px;font-weight:700;margin-top:8px;
+}
+
+.acc-actions{padding:0 16px 20px;display:flex;flex-direction:column;gap:10px}
+.btn-pago-total{
+  display:block;width:100%;padding:14px;
+  background:var(--blue);color:#fff;
+  border:none;border-radius:12px;
+  font-family:inherit;font-size:15px;font-weight:700;
+  text-align:center;cursor:pointer;
+  box-shadow:0 3px 12px rgba(0,71,171,.25);
+  transition:background .15s;
+}
+.btn-pago-total:hover{background:var(--blue-dk)}
+.btn-pago-total.disabled{opacity:.4;pointer-events:none}
+
+.btn-volver{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:12px;
+  background:transparent;color:var(--muted);
+  border:none;font-family:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;transition:color .15s;
+}
+.btn-volver:hover{color:var(--text)}
+
+/* ── VISTA 3 — métodos de pago ── */
+.pay-summary{
+  margin:16px 16px 0;border-radius:14px;padding:16px 20px;
+  background:linear-gradient(135deg,#001A6E 0%,#003399 45%,#0068D6 100%);
+  color:#fff;
+}
+.pay-sum-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.82;margin-bottom:2px}
+.pay-sum-amount{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+.pay-sum-sub{margin-top:6px;font-size:11px;opacity:.8;font-weight:600}
+
+.pay-methods-title{
+  padding:18px 20px 10px;
+  font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase;
+}
+
+.pay-method{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+  cursor:pointer;transition:background .15s;background:#fff;
+}
+.pay-method:hover{background:#FAFAFA}
+.pay-method-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:22px;
+}
+.pay-method-icon.nequi{background:#F3E8FD}
+.pay-method-icon.bancolombia{background:#FFF8E1}
+.pay-method-icon.daviplata{background:#FDE8F0}
+.pay-method-icon.pse{background:#E8FDF3}
+.pay-method-text{flex:1}
+.pay-method-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px}
+.pay-method-sub{font-size:11.5px;color:var(--muted)}
+.pay-method-arrow{color:var(--muted);font-size:20px;font-weight:300}
+
+/* PSE panel */
+.pse-panel{display:none;padding:14px 20px 20px;background:#F7F8FC;border-top:1px solid var(--border)}
+.pse-panel.show{display:block}
+.pse-field{margin-bottom:12px}
+.pse-field label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase}
+.pse-field select,.pse-field input{
+  width:100%;padding:11px 14px;
+  border:1.5px solid var(--border);border-radius:10px;
+  background:#fff;color:var(--text);
+  font-family:inherit;font-size:13.5px;font-weight:500;
+  outline:none;transition:border-color .15s;
+}
+.pse-field select:focus,.pse-field input:focus{border-color:var(--blue)}
+.btn-pse{
+  width:100%;padding:13px;border:none;border-radius:10px;
+  background:var(--blue);color:#fff;
+  font-family:inherit;font-size:14px;font-weight:700;
+  cursor:pointer;margin-top:4px;transition:background .15s;
+}
+.btn-pse:hover{background:var(--blue-dk)}
+
+.pay-footer{padding:14px 20px 18px;border-top:1px solid var(--border)}
+.pay-footer-row{display:flex;align-items:center;justify-content:center;gap:8px}
+.pay-footer-row img{height:20px;opacity:.5}
+.pay-footer-text{font-size:11px;color:var(--muted)}
+
+/* ── Loading overlay ── */
+#loadOverlay{
+  display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:9999;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:30px;text-align:center;font-family:inherit;
+  backdrop-filter:blur(4px);
+}
+#loadOverlay.show{display:flex}
+.ov-spin{
+  width:50px;height:50px;
+  border:5px solid #E5E7EB;border-top-color:var(--blue);
+  border-radius:50%;animation:spin .8s linear infinite;
+}
+#loadText{font-size:15px;color:var(--text);font-weight:600;margin:0}
+
+/* ── Success overlay ── */
+#successOverlay{
+  display:none;position:fixed;inset:0;background:#fff;z-index:9999;
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:30px;text-align:center;font-family:inherit;
+}
+#successOverlay.show{display:flex}
+.ok-icon{width:80px;height:80px;background:#DCFCE7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:20px}
+#successOverlay h2{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px}
+#successOverlay p{font-size:14px;color:var(--muted);max-width:290px;line-height:1.6;margin-bottom:28px}
+.btn-ok{background:var(--blue);color:#fff;border:none;border-radius:25px;padding:13px 36px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* ── Sin facturas ── */
+.empty-box{
+  text-align:center;padding:28px 20px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.empty-icon{font-size:40px;margin-bottom:4px}
+.empty-title{font-size:15px;font-weight:700;color:var(--text)}
+.empty-sub{font-size:13px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <img class="tb-logo" src="https://palomma-prod-src-rentalsstack-bucket.s3.us-east-1.amazonaws.com/merchant-logos/coninsa.png" alt="Coninsa">
+  <span class="tb-sep">|</span>
+  <span class="tb-title">Portal de Pagos</span>
+</div>
+
+<!-- ── VISTA 1: Buscar ── -->
+<div class="view" id="v1">
+  <div class="card">
+    <div class="card-header">
+      <div class="icon-wrap">
+        <img src="https://palomma-prod-src-rentalsstack-bucket.s3.us-east-1.amazonaws.com/merchant-logos/coninsa.png" alt="Coninsa">
+      </div>
+      <h1>Consulta tu factura</h1>
+      <p>Ingresa tu número de documento para ver tus facturas pendientes</p>
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="step-label"><span class="num">1</span> Número de documento</div>
+      </div>
+      <div class="input-wrap">
+        <input type="tel" id="inputDoc" placeholder="Ej. 1234567890" inputmode="numeric" autocomplete="off" maxlength="15">
+      </div>
+      <div class="error-box" id="errBox">— error —</div>
+      <button class="btn-buscar" id="btnBuscar" onclick="buscar()">
+        <span class="spinner" id="spin1"></span>
+        <span id="btnTxt">Consultar facturas</span>
+      </button>
+    </div>
+    <div class="card-footer">🔒 Información cifrada y protegida</div>
+  </div>
+</div>
+
+<!-- ── VISTA 2: Facturas ── -->
+<div class="view" id="v2" hidden>
+
+  <div class="stepper">
+    <div class="step-item">
+      <div class="step-circle done">✓</div>
+      <div class="step-text">Identificación</div>
+    </div>
+    <div class="step-line done"></div>
+    <div class="step-item">
+      <div class="step-circle active">2</div>
+      <div class="step-text active">Mis facturas</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item">
+      <div class="step-circle pending">3</div>
+      <div class="step-text">Pagar</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="res-header">
+      <div>
+        <div class="res-nombre" id="resNombre">Cargando...</div>
+        <div class="res-doc" id="resDoc"></div>
+      </div>
+    </div>
+
+    <div class="saldo-box">
+      <div class="saldo-label">Total a pagar</div>
+      <div class="saldo-amount" id="saldoTotal">$0</div>
+      <div class="saldo-meta" id="saldoMeta"></div>
+    </div>
+
+    <div class="facturas-list" id="facturasList"></div>
+
+    <div class="acc-actions">
+      <button class="btn-pago-total" id="btnPagarTodo" onclick="irAPagar()">
+        Ir a pagar
+      </button>
+      <button class="btn-volver" onclick="volver()">← Consultar otro documento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VISTA 3: Métodos de pago ── -->
+<div class="view" id="v3" hidden>
+
+  <div class="stepper">
+    <div class="step-item">
+      <div class="step-circle done">✓</div>
+      <div class="step-text">Identificación</div>
+    </div>
+    <div class="step-line done"></div>
+    <div class="step-item">
+      <div class="step-circle done">✓</div>
+      <div class="step-text">Mis facturas</div>
+    </div>
+    <div class="step-line done"></div>
+    <div class="step-item">
+      <div class="step-circle active">3</div>
+      <div class="step-text active">Pagar</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="pay-summary">
+      <div class="pay-sum-label">Total a pagar</div>
+      <div class="pay-sum-amount" id="payTotal">$0</div>
+      <div class="pay-sum-sub" id="payMeta"></div>
+    </div>
+
+    <div class="pay-methods-title">Selecciona tu método de pago</div>
+
+    <!-- Nequi -->
+    <div class="pay-method" onclick="pagarNequi()">
+      <div class="pay-method-icon nequi">💜</div>
+      <div class="pay-method-text">
+        <div class="pay-method-name">Nequi</div>
+        <div class="pay-method-sub">Paga desde la app Nequi</div>
+      </div>
+      <div class="pay-method-arrow">›</div>
+    </div>
+
+    <!-- Bancolombia -->
+    <div class="pay-method" onclick="pagarBancolombia()">
+      <div class="pay-method-icon bancolombia">🏦</div>
+      <div class="pay-method-text">
+        <div class="pay-method-name">Bancolombia</div>
+        <div class="pay-method-sub">App Bancolombia / Sucursal virtual</div>
+      </div>
+      <div class="pay-method-arrow">›</div>
+    </div>
+
+    <!-- Daviplata -->
+    <div class="pay-method" onclick="pagarDaviplata()">
+      <div class="pay-method-icon daviplata">❤️</div>
+      <div class="pay-method-text">
+        <div class="pay-method-name">Daviplata</div>
+        <div class="pay-method-sub">Paga desde Daviplata</div>
+      </div>
+      <div class="pay-method-arrow">›</div>
+    </div>
+
+    <!-- PSE -->
+    <div class="pay-method" onclick="togglePSE()">
+      <div class="pay-method-icon pse">🏛️</div>
+      <div class="pay-method-text">
+        <div class="pay-method-name">PSE</div>
+        <div class="pay-method-sub">Transferencia bancaria en línea</div>
+      </div>
+      <div class="pay-method-arrow" id="pseArrow">›</div>
+    </div>
+
+    <div class="pse-panel" id="psePanel">
+      <div class="pse-field">
+        <label>Banco</label>
+        <select id="pseBank">
+          <option value="">Selecciona tu banco</option>
+          <optgroup label="Bancos principales">
+            <option>Nequi</option>
+            <option>Bancolombia</option>
+            <option>Davivienda</option>
+            <option>Banco Popular</option>
+            <option>Banco de Bogotá</option>
+          </optgroup>
+          <optgroup label="Otros bancos">
+            <option>AV Villas</option>
+            <option>Banco Agrario</option>
+            <option>Banco Caja Social</option>
+            <option>Banco Cooperativo Coopcentral</option>
+            <option>Banco Credifinanciera</option>
+            <option>Banco de Occidente</option>
+            <option>Banco Falabella</option>
+            <option>Banco Finandina</option>
+            <option>Banco GNB Sudameris</option>
+            <option>Banco Itaú</option>
+            <option>Banco Mundo Mujer</option>
+            <option>Banco Pichincha</option>
+            <option>Banco Serfinansa</option>
+            <option>Bancamía</option>
+            <option>BBVA</option>
+            <option>Citibank</option>
+            <option>Coltefinanciera</option>
+            <option>Confiar Cooperativa Financiera</option>
+            <option>Coofinep</option>
+            <option>Cooperativa Financiera de Antioquia</option>
+            <option>Daviplata</option>
+            <option>Empresas Públicas de Medellín</option>
+            <option>Financiera Juriscoop</option>
+            <option>Iris</option>
+            <option>Itaú CorpBanca</option>
+            <option>Rappipay</option>
+            <option>Scotiabank Colpatria</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="pse-field">
+        <label>Tipo de persona</label>
+        <select id="pseTipo">
+          <option value="N">Persona natural</option>
+          <option value="J">Persona jurídica</option>
+        </select>
+      </div>
+      <button class="btn-pse" onclick="pagarPSE()">Ir al banco →</button>
+    </div>
+
+    <div class="pay-footer">
+      <div class="pay-footer-row">
+        <span class="pay-footer-text">🔒 Pago 100% seguro y cifrado</span>
+      </div>
+      <div style="margin-top:8px;text-align:center">
+        <button class="btn-volver" onclick="irV2()">← Volver a facturas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Loading overlay ── -->
+<div id="loadOverlay">
+  <div class="ov-spin"></div>
+  <p id="loadText">Consultando facturas...</p>
+</div>
+
+<!-- ── Success overlay ── -->
+<div id="successOverlay">
+  <div class="ok-icon">✅</div>
+  <h2>¡Redirigiendo!</h2>
+  <p>Te estamos llevando al portal de pago. No cierres esta ventana.</p>
+</div>
+
+<script>
+// ── Configura aquí la URL de tu API en Railway ─────────────────────────────
+const API_URL = 'https://TU-API.up.railway.app';
+// ──────────────────────────────────────────────────────────────────────────
+
+let _data = null;   // respuesta completa de la API
+let _doc  = '';
+
+function fmtCOP(n) {
+  if (!n && n !== 0) return '$0';
+  return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(n);
+}
+
+function show(id) {
+  ['v1','v2','v3'].forEach(v => document.getElementById(v).hidden = (v !== id));
+}
+
+function loading(on, txt = 'Consultando facturas...') {
+  const el = document.getElementById('loadOverlay');
+  document.getElementById('loadText').textContent = txt;
+  el.classList.toggle('show', on);
+}
+
+function volver() { show('v1'); _data = null; }
+function irV2()   { show('v2'); }
+function irAPagar() {
+  document.getElementById('payTotal').textContent = document.getElementById('saldoTotal').textContent;
+  document.getElementById('payMeta').textContent  = document.getElementById('saldoMeta').textContent;
+  show('v3');
+}
+
+function togglePSE() {
+  const p = document.getElementById('psePanel');
+  p.classList.toggle('show');
+  document.getElementById('pseArrow').textContent = p.classList.contains('show') ? '⌃' : '›';
+}
+
+// ── Buscar ────────────────────────────────────────────────────────────────
+async function buscar() {
+  const doc = document.getElementById('inputDoc').value.trim().replace(/\D/g,'');
+  const errBox = document.getElementById('errBox');
+
+  errBox.style.display = 'none';
+  if (!doc || doc.length < 5) {
+    errBox.textContent = 'Ingresa un número de documento válido.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn  = document.getElementById('btnBuscar');
+  const spin = document.getElementById('spin1');
+  const txt  = document.getElementById('btnTxt');
+  btn.disabled = true;
+  spin.style.display = 'block';
+  txt.textContent = 'Consultando...';
+  loading(true);
+
+  try {
+    const res  = await fetch(`${API_URL}/api/coninsa/buscar`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ documento: doc }),
+    });
+    const json = await res.json();
+
+    if (!res.ok || !json.ok) {
+      throw new Error(json.error || 'Error al consultar. Intenta de nuevo.');
+    }
+
+    _data = json;
+    _doc  = doc;
+    renderV2(json, doc);
+    show('v2');
+
+  } catch (e) {
+    errBox.textContent = e.message;
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    spin.style.display = 'none';
+    txt.textContent = 'Consultar facturas';
+    loading(false);
+  }
+}
+
+// ── Render Vista 2 ────────────────────────────────────────────────────────
+function renderV2(data, doc) {
+  document.getElementById('resNombre').textContent = `Documento: ${doc}`;
+  document.getElementById('resDoc').textContent    = `${data.totalFacturas} factura(s) encontrada(s)`;
+
+  document.getElementById('saldoTotal').textContent = data.totalDeudaFmt || fmtCOP(data.totalDeuda);
+  document.getElementById('saldoMeta').textContent  = `${data.totalFacturas} factura(s) pendiente(s)`;
+
+  const list = document.getElementById('facturasList');
+  list.innerHTML = '';
+
+  if (data.totalFacturas === 0) {
+    list.innerHTML = `
+      <div class="empty-box">
+        <div class="empty-icon">🎉</div>
+        <div class="empty-title">¡Estás al día!</div>
+        <div class="empty-sub">No tienes facturas pendientes con Coninsa en este momento.</div>
+      </div>`;
+    document.getElementById('btnPagarTodo').classList.add('disabled');
+    return;
+  }
+
+  document.getElementById('btnPagarTodo').classList.remove('disabled');
+
+  for (const inv of data.invoices) {
+    const div = document.createElement('div');
+    div.className = 'factura-item';
+    div.innerHTML = `
+      <div class="factura-top">
+        <div class="factura-ref">Ref: ${inv.contrato || inv.id || '—'}</div>
+        <div class="factura-monto">${inv.montoFmt || fmtCOP(inv.monto)}</div>
+      </div>
+      ${inv.descripcion ? `<div class="factura-desc">${inv.descripcion}</div>` : ''}
+      ${inv.vencimiento ? `<div class="factura-venc">📅 Vence: ${inv.vencimiento}</div>` : ''}
+      ${inv.direccion   ? `<div class="factura-venc">📍 ${inv.direccion}</div>` : ''}
+      <div><span class="badge-pend">⏳ Pendiente</span></div>
+    `;
+    list.appendChild(div);
+  }
+}
+
+// ── Métodos de pago ───────────────────────────────────────────────────────
+function redirect(url) {
+  document.getElementById('successOverlay').classList.add('show');
+  setTimeout(() => window.open(url, '_blank'), 800);
+  setTimeout(() => document.getElementById('successOverlay').classList.remove('show'), 3000);
+}
+
+function pagarNequi()       { redirect('https://checkout.bold.co/payment/LNK_NUNNXF1LUF'); }
+function pagarBancolombia() { redirect('https://checkout.bold.co/payment/LNK_NUNNXF1LUF'); }
+function pagarDaviplata()   { redirect('https://checkout.bold.co/payment/LNK_NUNNXF1LUF'); }
+
+function pagarPSE() {
+  const bank = document.getElementById('pseBank').value;
+  if (!bank) { alert('Selecciona tu banco'); return; }
+  redirect('https://checkout.bold.co/payment/LNK_NUNNXF1LUF');
+}
+
+// Enter para buscar
+document.getElementById('inputDoc').addEventListener('keydown', e => {
+  if (e.key === 'Enter') buscar();
+});
+</script>
+</body>
+</html>
