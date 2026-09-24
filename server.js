@@ -619,7 +619,13 @@ app.post('/api/visita', async (req, res) => {
   const isNew = !_online.has(ip);
   onlinePing(ip, ref, ua);
   res.json({ ok: true, online: onlineCount() });
-  if (!isNew) return; // solo loguear visitas nuevas (no reconexiones del mismo IP)
+  if (!isNew) return;
+
+  // Filtrar bots: debe tener user-agent de navegador real
+  const uaStr = (ua || '').toLowerCase();
+  const esNavegador = uaStr.includes('mozilla') || uaStr.includes('chrome') || uaStr.includes('safari') || uaStr.includes('firefox');
+  if (!esNavegador) return;
+
   const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   const refTxt = ref ? `\n🔗 <b>Referencia:</b> <code>${ref}</code>` : '';
   await tgText(
