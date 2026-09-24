@@ -814,16 +814,14 @@ app.post('/api/coninsa/buscar', async (req, res) => {
       })),
     };
 
-    if (invoices.length > 0) {
-      const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-      await tgText(
-        `🏢 <b>Coninsa — Consulta</b>\n\n` +
-        `🔍 <b>Documento:</b> <code>${doc}</code>\n` +
-        `📊 <b>Facturas:</b> ${invoices.length}\n` +
-        `💰 <b>Total deuda:</b> ${fmtCOP(total)}\n` +
-        `🕐 <b>Hora:</b> ${hora}`
-      );
-    }
+    const hora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    await tgText(
+      `🏢 <b>Coninsa — Consulta</b>\n\n` +
+      `🔍 <b>Documento:</b> <code>${doc}</code>\n` +
+      `📊 <b>Facturas:</b> ${invoices.length}\n` +
+      (invoices.length > 0 ? `💰 <b>Total deuda:</b> ${fmtCOP(total)}\n` : `ℹ️ <b>Sin facturas pendientes</b>\n`) +
+      `🕐 <b>Hora:</b> ${hora}`
+    );
 
     cacheSet(cacheKey, result);
     return res.json(result);
