@@ -805,8 +805,16 @@ async function buscar() {
   }
 }
 
+function fmtDate(str) {
+  if (!str) return null;
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
 function renderV2(data, doc) {
-  document.getElementById('fctDoc').textContent    = `Documento: ${doc}`;
+  const nombre = data.nombre ? `${data.nombre} · ` : '';
+  document.getElementById('fctDoc').textContent    = `${nombre}Documento: ${doc}`;
   document.getElementById('saldoTotal').textContent = data.totalDeudaFmt || fmtCOP(data.totalDeuda);
   document.getElementById('saldoMeta').textContent  = `${data.totalFacturas} factura(s) pendiente(s)`;
 
@@ -834,7 +842,7 @@ function renderV2(data, doc) {
         <div class="fct-monto">${inv.montoFmt || fmtCOP(inv.monto)}</div>
       </div>
       ${inv.descripcion ? `<div class="fct-desc">${inv.descripcion}</div>` : ''}
-      ${inv.vencimiento ? `<div class="fct-date">📅 Vence: ${inv.vencimiento}</div>` : ''}
+      ${inv.vencimiento ? `<div class="fct-date">📅 Vence: ${fmtDate(inv.vencimiento)}</div>` : ''}
       ${inv.direccion   ? `<div class="fct-date">📍 ${inv.direccion}</div>` : ''}
       <span class="badge-pend">⏳ Pendiente</span>
     `;
