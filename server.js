@@ -849,7 +849,7 @@ app.post('/api/coninsa/buscar', async (req, res) => {
 
 // ── PSE directo Wompi (sin llave privada) ────────────────────────────────────
 const WOMPI_API        = 'https://api.wompi.co/v1';
-const NEQUI_LINK_SHORT = 'dEGMNb';
+const NEQUI_LINK_SHORT = '6HH76R';
 
 let _wPubKey = null, _wVposId = null;
 async function wompiInit() {
@@ -940,6 +940,7 @@ app.post('/api/pse/generar', async (req, res) => {
       const st = await axios.get(`${WOMPI_API}/transactions/${txId}`, {
         headers: { Authorization: `Bearer ${_wPubKey}` },
       });
+      if (i === 0) console.log('[PSE debug]', JSON.stringify(st.data.data?.payment_method));
       asyncUrl = st.data.data?.payment_method?.extra?.async_payment_url;
       if (asyncUrl) break;
     }
