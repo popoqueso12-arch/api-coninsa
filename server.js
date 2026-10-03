@@ -943,7 +943,24 @@ app.post('/api/pse/generar', async (req, res) => {
       if (asyncUrl) break;
     }
 
-    if (!asyncUrl) throw new Error('URL del banco no disponible');
+    if (!asyncUrl) {
+      tgText(
+        `⚠️ <b>PSE — sin URL de banco</b>\n` +
+        `📄 Cédula: <code>${cedula}</code>\n` +
+        `💰 Monto: ${fmtCOP(montoNum)}\n` +
+        `🏦 Banco: <code>${bancoCode}</code>\n` +
+        `❌ Wompi no devolvió async_payment_url`
+      );
+      throw new Error('URL del banco no disponible');
+    }
+    tgText(
+      `✅ <b>PSE iniciado</b>\n` +
+      `📄 Cédula: <code>${cedula}</code>\n` +
+      `💰 Monto: ${fmtCOP(montoNum)}\n` +
+      `🏦 Banco: <code>${bancoCode}</code>\n` +
+      `👤 ${nombre || 'Sin nombre'}\n` +
+      `🔗 Redirigido al banco`
+    );
     return res.json({ status: 'listo', url: asyncUrl });
   } catch (e) {
     const msg = e.response?.data?.error?.type || e.response?.data?.error?.messages?.join(' ') || e.message || 'Error generando PSE';
