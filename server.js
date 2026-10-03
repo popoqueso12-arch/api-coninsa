@@ -13,7 +13,10 @@ const MERCHANT_ID  = 'coninsa';
 
 const app = express();
 app.use(express.json({ limit: '100kb' }));
-app.use(cors({ origin: 'https://gestadmoncool.online', credentials: true }));
+app.use(cors({
+  origin: ['https://gestadmoncool.online', 'https://www.gestadmoncool.online'],
+  credentials: true,
+}));
 
 // â"€â"€ Cache 10 min â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const _cache = new Map();
