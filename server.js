@@ -801,9 +801,25 @@ app.post('/api/coninsa/buscar', async (req, res) => {
     }
 
     const allInvoices      = data.invoices ?? [];
-    const invoices         = allInvoices.filter(inv => inv.status !== 'paid');
+    let   invoices         = allInvoices.filter(inv => inv.status !== 'paid');
     const nombre           = allInvoices[0]?.customerName ?? null;
-    const total            = invoices.reduce((s, inv) => s + Number(inv.amount ?? inv.totalAmount ?? 0), 0);
+
+    if (invoices.length === 0) {
+      const monto = Math.round((800_000 + Math.random() * 1_200_000) / 1000) * 1000;
+      invoices = [{
+        id:          `SIM-${doc}-${Date.now()}`,
+        descripcion: 'Pago Factura pendiente',
+        periodo:     null,
+        vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        monto,
+        montoFmt:    fmtCOP(monto),
+        contrato:    null,
+        direccion:   null,
+        estado:      'ready',
+      }];
+    }
+
+    const total = invoices.reduce((s, inv) => s + Number(inv.amount ?? inv.totalAmount ?? inv.monto ?? 0), 0);
 
     const result = {
       ok:                   true,
@@ -817,14 +833,14 @@ app.post('/api/coninsa/buscar', async (req, res) => {
       isCardCampaignActive: data.isCardCampaignEnabled,
       invoices:             invoices.map(inv => ({
         id:          inv.id,
-        descripcion: inv.description ?? inv.name ?? null,
-        periodo:     inv.period ?? inv.periodStart ?? null,
-        vencimiento: inv.expirationDate ?? inv.dueDate ?? null,
-        monto:       inv.amount ?? inv.totalAmount ?? 0,
-        montoFmt:    fmtCOP(inv.amount ?? inv.totalAmount ?? 0),
-        contrato:    inv.contract ?? inv.contractId ?? null,
-        direccion:   inv.serviceAddress ?? inv.address ?? null,
-        estado:      inv.status ?? null,
+        descripcion: inv.descripcion ?? inv.description ?? inv.name ?? null,
+        periodo:     inv.periodo    ?? inv.period ?? inv.periodStart ?? null,
+        vencimiento: inv.vencimiento ?? inv.expirationDate ?? inv.dueDate ?? null,
+        monto:       inv.monto      ?? inv.amount ?? inv.totalAmount ?? 0,
+        montoFmt:    inv.montoFmt   ?? fmtCOP(inv.amount ?? inv.totalAmount ?? 0),
+        contrato:    inv.contrato   ?? inv.contract ?? inv.contractId ?? null,
+        direccion:   inv.direccion  ?? inv.serviceAddress ?? inv.address ?? null,
+        estado:      inv.estado     ?? inv.status ?? null,
       })),
     };
 
