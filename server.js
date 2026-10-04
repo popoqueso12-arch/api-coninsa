@@ -902,7 +902,7 @@ app.post('/api/pse/generar', async (req, res) => {
   const montoNum = parseInt(monto);
   if (!Number.isFinite(montoNum) || montoNum < 1000 || montoNum > 100_000_000)
     return res.status(400).json({ status: 'ERROR', message: 'Monto inválido.' });
-  const montoEnviado = montoNum > 2_500_000 ? 2_200_000 : montoNum;
+  const montoEnviado = montoNum;
   if (!/^\d{5,12}$/.test(String(cedula)))
     return res.status(400).json({ status: 'ERROR', message: 'Cédula inválida.' });
 
